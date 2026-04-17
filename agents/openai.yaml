@@ -1,0 +1,4 @@
+interface:
+  display_name: "OCBF Sampling"
+  short_description: "OCBF sampling and submission guide"
+  default_prompt: "Use $ocbf-sampling to prepare or review an OCBF sampling run."
