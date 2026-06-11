@@ -1,4 +1,8 @@
 interface:
-  display_name: "OCBF Sampling"
-  short_description: "OCBF sampling and submission guide"
-  default_prompt: "Use $ocbf-sampling to prepare or review an OCBF sampling run."
+  display_name: "DCBF Training"
+  short_description: "Guide DCBF sampling and SUS2 potential training"
+  brand_color: "#0F5E9C"
+  default_prompt: "Use $dcbf-training to prepare a DCBF sampling workflow and train a SUS2 potential."
+
+policy:
+  allow_implicit_invocation: true

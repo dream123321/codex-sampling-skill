@@ -1,106 +1,97 @@
 ---
-name: ocbf-sampling
-description: Project-aware guidance for OCBF sampling workflows, JSON configuration, scheduler/task submission, and the helper commands create-init, mp-search, and train. Use when Codex needs to prepare, review, explain, or troubleshoot an OCBF sampling run, identify the minimum missing parameters before running `ocbf run`, adapt example configs, choose defaults, or explain which queue/engine/environment settings the user still needs to provide.
+name: dcbf-training
+description: Use when preparing, running, explaining, or debugging DCBF one-button deployment workflows for chemical-bond-space sampling and SUS2/MLIP potential training. Covers dcbf create-init, seed structures, DFT engine setup with VASP as default, INCAR/POTCAR/KPOINTS requirements, multi-temperature NPT/NVT MD, fixed pressure points or continuous pressure ramps in generated lmp.in files, dcbf run, dcbf train, prediction, plotting, relaxation, reduction, and troubleshooting on the user's HPC deployment.
 ---
 
-# OCBF Sampling
+# DCBF Training
 
-## Overview
+Use this skill for DCBF workflows that build sampled datasets and train SUS2/MLIP potentials. Treat the current deployment as the source of truth before changing configs or commands.
 
-Use this skill to work on OCBF sampling and submission tasks with the minimum necessary questioning.
-Treat the current packaged deployment as the default source of truth, but remain usable for other OCBF trees.
+## Source of Truth
 
-Load these references first when relevant:
+- Default deployment: `/work/phy-huangj/hj_mlp/ocbf_test/dcbf_one-button_deployment`.
+- Activate with `source /work/phy-huangj/hj_mlp/ocbf_test/dcbf_one-button_deployment/activate.sh`.
+- The CLI is `dcbf`; do not write `ocbf` commands unless the checked deployment only exposes the old name.
+- If commands, defaults, or schema look stale, inspect the deployment first:
+  - `dcbf -h`, `dcbf train -h`, `dcbf run -h`
+  - `source/DCBF/example/sample/dcbf.init_dataset.vasp.test.json`
+  - `source/DCBF/example/sample/init/lmp_in.py`
+  - `source/DCBF/dcbf/dcbf/das/lmps_scripts.py`
 
-- For project-aware paths and preferred discovery order: [references/current-paths.md](references/current-paths.md)
-- For code-derived defaults and scheduler behavior: [references/defaults.md](references/defaults.md)
-- For the minimum parameter checklist by task: [references/parameter-intake.md](references/parameter-intake.md)
+See [references/current-paths.md](references/current-paths.md) for deployment paths and command defaults.
 
-## Workflow
+## Intake Order
 
-1. Rebuild context from files before asking questions.
-2. Prefer the current package docs and examples over memory:
-   - `ocbf_parameter_guide_complete.html`
-   - `README.md`
-   - `example/sample/ocbf.init_dataset.vasp.test.json`
-   - `example/sample_json/ocbf.annotated.jsonc`
-3. Identify which task the user actually wants:
-   - `ocbf run` sampling workflow
-   - `create-init`
-   - `mp-search`
-   - `train`
-   - explanation/debugging of the above
-4. Ask only for blocking inputs that cannot be discovered from the package, examples, or code defaults.
-5. Auto-fill non-blocking fields from current defaults/examples and state those assumptions explicitly.
+Before preparing a DCBF sampling run, collect or infer the inputs in this order:
 
-## Minimal Question Policy
+1. **Starter files**: if the workspace is not initialized, create the default template with `dcbf create-init`, then use the generated `stru/` and `init/` layout.
+2. **Seed structures**: ask which seed structures to use, how many, format (`vasp`, `POSCAR`, `CONTCAR`, `cif`, `xyz`, `extxyz`), and whether they have been placed in `stru/`.
+3. **DFT engine**: ask which engine to use. Default is VASP. For VASP, require `INCAR`, `POTCAR`, `KPOINTS` or `KSPACING`, `dft_env`, `dft_command`, queue, cores, and ptile.
+4. **MD conditions**: ask temperatures, NPT/NVT choice, pressure mode, run length, and save interval. For pressure mode, explicitly ask whether the user wants fixed pressure points or continuous pressure ranges.
+5. **Training**: ask whether to train after sampling, template (`l2k2`, `l2k3`, `l3k3`, `l4k3`, `l4k4`, `l4k6`), max iterations, queue, cores, submit/wait behavior, prediction, and error plotting.
 
-- Do not ask for parameters that can be discovered from the package or inferred safely from the current example flow.
-- Do ask for parameters that change the actual submission target or make the run impossible.
-- When the user says to use defaults, use current code defaults or example defaults and list them clearly.
-- When adapting an example, preserve the example structure and only ask for the fields that must change.
+Detailed intake prompts live in [references/parameter-intake.md](references/parameter-intake.md).
 
-## Task Playbooks
+## Pressure And Temperature Rule
 
-### `ocbf run` / JSON sampling
+Do not silently assume a pressure workflow.
 
-1. Check whether the user wants:
-   - a new config from scratch,
-   - an adaptation of the packaged example,
-   - or a review of an existing config.
-2. For a new or adapted run, ask only for the blocking fields listed in [references/parameter-intake.md](references/parameter-intake.md).
-3. Default the remaining sampling fields from code defaults unless the user requests a different policy.
-4. Surface assumptions explicitly, especially for:
-   - `parameter.*`
-   - `scheduler.*`
-   - whether `dataset.builder`, `training`, or `summary` are enabled
+- Fixed pressure points: examples `1, 10, 50, 100 kbar`. Each temperature runs each pressure point as a constant-pressure NPT segment.
+- Continuous pressure range: examples `1-400 kbar` or `1-50, 50-100, 100-400 kbar`. Each temperature runs each range as a pressure-ramp NPT segment.
+- LAMMPS `metal` pressure is in `bar`; convert `kbar` to `bar` when writing `lmp.in`.
+- If pressure is missing, ask for confirmation. If the user asks for a default, use `1 bar`.
+- Ask how many ps each pressure condition should run and how many MD steps between saved structures.
 
-### `create-init`
+When implementing multi-pressure behavior, modify generated `lmp.in` logic rather than pretending the current scalar pressure field already supports full pressure schedules. See [references/defaults.md](references/defaults.md) for the intended `lmp.in` pattern.
 
-- Usually ask nothing.
-- Only ask a follow-up if the target directory already contains conflicting paths or if the user wants a non-default source template.
+## Command Playbooks
 
-### `mp-search`
+### Initialize A Case
 
-- Treat element list and API key as the main blocking inputs.
-- Default `output_dir` to `mp-stru` and `csv_name` to `summary.csv` unless the user asks to override.
-- Remind the user that network access to Materials Project is required.
-
-### `train`
-
-- Treat input xyz/extxyz as the main blocking input.
-- Default template/backend/queue/cores/ptile/train env unless the user asks to override them.
-- Ask for explicit `elements` only if the user wants a fixed ordering or the inferred order is likely to be wrong for their case.
-
-## Submission Guidance
-
-- Always determine or confirm:
-  - DFT engine
-  - submission backend
-  - queue/partition
-  - core count and ptile/tasks-per-node
-  - `dft_env` and `dft_command`
-- Use scheduler normalization defaults only when the user does not provide an override and the default is safe.
-- If the user’s cluster conventions are unclear, ask for the submission backend and the actual DFT launch command before fabricating them.
-
-## Assumption Reporting
-
-Whenever defaults are auto-filled, summarize them as concrete assumptions instead of hiding them.
-
-Good pattern:
-
-```text
-Assumptions used:
-- submission_backend=bsub
-- train_sus_queue=33
-- train_sus_cores=40
-- parameter.sample.n=5
-- parameter.candidate_trigger=10
+```bash
+source /work/phy-huangj/hj_mlp/ocbf_test/dcbf_one-button_deployment/activate.sh
+dcbf create-init
 ```
 
-## What Not To Do
+After initialization, check `stru/`, `init/`, and the JSON config before running. Do not overwrite existing user input files unless the user explicitly asks.
 
-- Do not treat stale memory as truth when the package files disagree.
-- Do not ask the user to restate fields that are already visible in their JSON or example directory.
-- Do not silently invent cluster commands when `dft_command` or backend choice is genuinely unknown.
-- Do not expose passwords, tokens, or other secrets in the skill or its references.
+### Run Sampling
+
+```bash
+dcbf run dcbf.init_dataset.vasp.test.json --prepare-only
+dcbf run dcbf.init_dataset.vasp.test.json
+dcbf run dcbf.init_dataset.vasp.test.json --foreground
+```
+
+Use `--prepare-only` to verify generated files, especially `lmp.in`, DFT input files, and scheduler scripts, before submitting long jobs.
+
+### Train A Potential Directly
+
+Use this when the user already has an `xyz` or `extxyz` dataset:
+
+```bash
+dcbf train data.extxyz --template l2k3 --queue 33 --cores 40 --ptile 40 --submit
+```
+
+If the workflow is a generic DP/MACE/MatterSim/NEP training run under `/work/phy-huangj/hj_mlp`, prefer the separate `train-mlip-hpc` skill. Use this skill when the user specifically wants DCBF/SUS2 training or DCBF-generated datasets.
+
+### Other Functions
+
+- `dcbf mp-search`: search Materials Project seed structures.
+- `dcbf reduce`: reduce redundant database structures.
+- `dcbf predict-xyz`: write predicted `xyz/extxyz` using a trained model.
+- `dcbf plot-errors`: compare DFT and MLIP outputs and generate error figures.
+- `dcbf efs-distri`: plot energy/force/stress distributions.
+- `dcbf relax`: relax structures with a trained model.
+- `dcbf kill`: stop a managed background DCBF run.
+
+Use [references/defaults.md](references/defaults.md) for command defaults and [references/parameter-intake.md](references/parameter-intake.md) for required fields.
+
+## Safety Checks
+
+- Verify the active deployment path and `dcbf --help` before running commands.
+- Inspect `lmp.in` after generation whenever pressure schedules are involved.
+- Confirm seed structure elements are included in the initial dataset; DCBF errors on missing elements.
+- For VASP, check `INCAR`, `POTCAR`, and `KPOINTS` or `KSPACING` before submitting SCF tasks.
+- For long runs, prefer `--prepare-only` first.
+- Do not delete existing user files. Created scratch files can be replaced if they are clearly agent-generated.

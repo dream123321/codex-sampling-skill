@@ -1,97 +1,134 @@
 # Parameter Intake
 
-Ask only for blocking inputs. Default everything else from code or the closest packaged example and report those assumptions.
+Use this checklist before generating a DCBF sampling config, modifying `lmp.in`, or launching jobs.
 
-## `ocbf run`
+## 1. Starter Files
 
-### Blocking questions
+If the workspace is not initialized, use:
 
-- What is the input data source?
-  - existing `xyz/extxyz`, or
-  - build from `stru` plus `init`
-- Which DFT engine?
-  - `abacus`, `cp2k`, `qe`, or `vasp`
-- Which submission backend?
-  - `bsub/lsf` or `sbatch/slurm`
-- What queue/partition and how many cores/ptile for:
-  - training
-  - LAMMPS
-  - DFT
-- What are the actual DFT environment setup and launch command?
-  - `dft_env`
-  - `dft_command`
-- What is the main loop schedule?
-  - `main_loop_npt`, or
-  - `main_loop_nvt`
+```bash
+source /work/phy-huangj/hj_mlp/ocbf_test/dcbf_one-button_deployment/activate.sh
+dcbf create-init
+```
 
-### Usually ask only if the user has not implied them
+Then inspect the generated layout before editing:
 
-- Whether `dataset.builder.enabled` should be `true` or `false`
-- Whether `training.enabled` should be `true` or `false`
-- Whether `summary.enabled` should be `true` or `false`
-- Whether they want to start from the packaged example and edit a few fields, instead of building a new config from scratch
+- `stru/`: seed structures
+- `init/`: DFT and LAMMPS templates
+- JSON config file, usually based on the generated or example DCBF config
 
-### Usually safe to default
+Do not overwrite existing user files unless the user explicitly asks.
 
-- `parameter.*` defaults from `bootstrap.py`
-- `sample.*`
-- `candidate_trigger`
-- `coverage_*`
-- `dft.calc_dir_num`
-- `dft.force_threshold`
-- `training.predict.*`
-- `training.plot.*`
+## 2. Seed Structures
 
-## `create-init`
+Ask or infer:
 
-### Blocking questions
+- Which seed structures should be used?
+- Are they already in the generated `stru/` directory?
+- Are there one or many structures?
+- Format: `vasp`, `POSCAR`, `CONTCAR`, `cif`, `xyz`, or `extxyz`.
+- Do all seed structures contain the same intended element set?
 
-- None by default.
+## 3. DFT Engine
 
-### Ask only when needed
+Ask which calculator will label selected structures.
 
-- Is the target directory empty enough to avoid collisions?
-- Do they want a non-default template source instead of packaged `example/sample`?
+- Default: `vasp`.
+- Other possible engines in the codebase: `cp2k`, `qe`, `abacus`.
 
-## `mp-search`
+For VASP, require:
 
-### Blocking questions
+- `init/INCAR`
+- `init/POTCAR`
+- `init/KPOINTS`, or an `INCAR` using `KSPACING`
+- `sampling.scheduler.dft_env`
+- `sampling.scheduler.dft_command`
+- SCF queue, cores, and ptile
+- `sampling.structure_selection.dft.calc_dir_num`
+- `sampling.structure_selection.dft.force_threshold`
 
-- Which element list?
-- What is the Materials Project API key?
+For CP2K/QE/ABACUS, inspect the corresponding template files and pseudo/basis maps under `init/` before writing commands.
 
-### Optional questions
+## 4. Initial Dataset Builder
 
-- Override `output_dir`?
-- Override `csv_name`?
+Ask whether the initial dataset comes from:
 
-### Safe defaults
+- Existing `xyz/extxyz` via `init_dataset.xyz_input`
+- Random displacement
+- Phonon displacement
+- Short MD using `init_dataset.builder.construction_methods.md`
 
-- `output_dir=mp-stru`
-- `csv_name=summary.csv`
+For builder MD, collect:
 
-## `train`
+- Temperature in K
+- Pressure in bar if NPT is used; default is about 1 bar when the user confirms default pressure
+- Step counts and trajectory interval
+- Calculator/model used for fast MD (`nep`, `mace`, `chgnet`, `dp`, `m3gnet`, `mattersim`, or `sus2`)
 
-### Blocking questions
+## 5. Sampling MD Conditions
 
-- Which input `xyz/extxyz` file?
+For main DCBF sampling, always ask:
 
-### Optional questions
+- Temperature list or range, for example `300, 500, 700 K`.
+- Ensemble: NPT or NVT. Multi-pressure requests imply NPT.
+- Pressure mode:
+  - fixed pressure points, for example `1, 10, 50, 100 kbar`
+  - continuous pressure ranges, for example `1-400 kbar`
+- For each pressure point or pressure range:
+  - duration in ps
+  - save interval in MD steps
+- Time step, if not using the template value.
 
-- Override `template`?
-- Override backend / queue / cores / ptile?
-- Override `sus2_exe` or `train_env`?
-- Need explicit `elements` ordering?
+Pressure units:
 
-### Safe defaults
+- User-facing pressure may be in `bar` or `kbar`.
+- LAMMPS `metal` pressure is `bar`.
+- Convert `1 kbar` to `1000 bar` when writing `lmp.in`.
 
-- CLI defaults from `cli_defaults.py`
-- Infer `elements` from the input dataset if the user does not care about a manual ordering
+## 6. Structure Selection Mode
 
-## Assumption pattern
+Ask or infer which mode is intended:
 
-When auto-filling fields, summarize them clearly before presenting final commands/config:
+- `mlp_encode_model`: descriptor coverage mode for DCBF chemical-bond-space selection.
+- `das_adaptive`: adaptive uncertainty sampling.
+- `das_fixed`: fixed threshold uncertainty sampling.
 
-- “I used `submission_backend=bsub` because you did not specify a backend.”
-- “I kept `training.enabled=false` because you only asked for sampling.”
-- “I used default `candidate_trigger=10` and `sample.n=5`.”
+Only one mode should be enabled. If none or multiple are enabled, the current code warns and defaults toward `mlp_encode_model`.
+
+For `mlp_encode_model`, ask about:
+
+- `body_list`, commonly `["two", "three"]`
+- `selection_budget_schedule`
+- `coverage_threshold_schedule`
+- `coverage_calculation_mode`, commonly `per_configuration`
+- `mean_descriptor_enabled`, normally false unless the user asks for mean descriptor coverage
+
+## 7. Training
+
+Ask whether training should happen after sampling or directly from an existing dataset.
+
+For `dcbf train` or `training.enabled=true`, collect:
+
+- Input dataset path if not using sampling output
+- Template: `l2k2`, `l2k3`, `l3k3`, `l4k3`, `l4k4`, `l4k6`
+- Element order if the user needs a fixed order
+- `r_max` if overriding
+- `max_iter`
+- Queue, cores, ptile
+- Submit now or only generate files
+- Predict after training?
+- Plot errors after prediction?
+
+## 8. Minimal Question Set
+
+If the user gives no details, ask these first:
+
+1. Should I run `dcbf create-init` to create the default files?
+2. Which seed structures should be used, and are they in the generated `stru/` directory?
+3. Which DFT engine should label selected structures? Default VASP.
+4. For VASP, where are `INCAR`, `POTCAR`, and `KPOINTS` or `KSPACING`?
+5. What temperatures should MD run?
+6. Pressure mode: fixed pressure points or continuous pressure ranges?
+7. How many ps for each pressure condition?
+8. How many MD steps between saved structures?
+9. Should sampling output be trained into a SUS2 potential automatically?

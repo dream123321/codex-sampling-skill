@@ -1,171 +1,140 @@
-# Defaults
+# Defaults And Pressure MD Pattern
 
-This file records current code-derived defaults that are safe to reuse when the user does not override them.
+This reference records the intended behavior for DCBF MD and training workflows.
 
-## `ocbf run` parameter defaults
+## Important Existing Defaults
 
-Source: `bootstrap.py`
+- Deployment CLI: `dcbf`
+- Direct train template: `l2k3`
+- Direct train queue: `33`
+- Direct train cores/ptile: `40/40`
+- Direct train max iterations: `3000`
+- Sampling example DFT engine: `vasp`
+- VASP queue/cores/ptile in examples: `33/40/40`
+- Builder MD default pressure in code: `1.01325 bar`
+- User-facing default pressure, when requested: `1 bar`
 
-- `mlp_nums=3`
-- `size="(1, 1, 1)"`
-- `sort_ele=true`
-- `nvt_lattice_scaling_factor=[1]`
-- `das_ambiguity=true`
-- `af_default=0.01`
-- `af_limit=0.2`
-- `af_failed=0.5`
-- `over_fitting_factor=1.1`
-- `af_adaptive=null`
-- `threshold_low=0.08`
-- `threshold_high=0.3`
-- `select_stru_num=null`
-- `end=1`
-- `num_elements=6`
-- `sample.n=5`
-- `sample.cluster_threshold_init=0.5`
-- `sample.k=2`
-- `sample.clustering_by_ambiguity=true`
-- `mlp_encode_model=true`
-- `encoding_cores=2`
-- `iw_method=Freedman_Diaconis`
-- `iw=0.01`
-- `iw_scale=1.0`
-- `body_list=["two","three"]`
-- `mtp_type=l2k2`
-- `selection_budget_schedule=[20,15,10]`
-- `coverage_threshold_schedule=[99.5,99.9,99.95]`
-- `coverage_rate_method=mean`
-- `candidate_trigger=10`
-- `plateau_generations=null`
-- `min_coverage_delta=null`
-- `coverage_calculation_mode=per_configuration`
-- `report_per_configuration_details=true`
-- `dft.calc_dir_num=5`
-- `dft.force_threshold=20`
-- `dft.pending_warning_hours=null`
+## Current Code Caveat
 
-## Scheduler normalization behavior
+The current sampling template historically uses `main_loop_npt` as a temperature list and `lammps_scripts(ensemble, temp, ...)` passes only temperature into `lmp.in`.
 
-Source: `runtime_config.py`
+If the user asks for multiple pressures, check whether the active deployment has been updated. If not, implement or plan a code change that writes pressure segments into `lmp.in`.
 
-- `train_env` defaults to empty string if missing.
-- `lmp_env` defaults to empty string if missing.
-- `scf_cal_engine` falls back to `abacus` if missing.
-- `submission_backend` aliases:
-  - `lsf -> bsub`
-  - `slurm -> sbatch`
-- If no backend can be inferred, fallback backend is `bsub`.
+## Desired `lmp.in` Behavior
 
-### Engine default DFT settings
+Each temperature should produce one NPT task/input. Inside that `lmp.in`, run all requested pressure conditions in sequence.
 
-- `abacus`
-  - `dft_env=module load compiler/2022.1.0 mpi/2021.6.0 mkl/2022.2.0`
-    `export PATH=/work/phy-huangj/apps/il/abacus/3.6.5/bin:$PATH`
-  - `dft_command=mpirun -n 40 abacus`
-- `cp2k`
-  - `dft_env=module purge`
-    `module load cp2k/2024.1_oneapi-e5`
-  - `dft_command=mpirun -n 40 cp2k.popt -i cp2k.inp`
-- `qe`
-  - `dft_env=module load compiler/2022.1.0 mpi/2021.6.0 mkl/2022.2.0`
-    `export PATH=/work/phy-huangj/apps/qe/7.5/build-intel/bin:$PATH`
-  - `dft_command=mpirun -n 40 pw.x -in qe.in`
-- `vasp`
-  - `dft_env=export PATH=/work/phy-huangj/app/vasp.5.4.4/bin:$PATH`
-  - `dft_command=mpirun -n 40 vasp_std`
+Example for fixed pressure points at one temperature:
 
-### SchedulerSpec numeric defaults
+```lammps
+variable T equal 300
+variable dt equal 0.001
+variable nevery equal 100
+variable Tdamp equal "v_dt * 100"
+variable Pdamp equal "v_dt * 1000"
 
-Used by `build_scheduler_spec` before merging user config:
+velocity all create ${T} ${random} mom yes rot yes dist gaussian
+thermo 100
 
-- `train_sus_queue=33`
-- `train_sus_cores=40`
-- `train_sus_ptile=40`
-- `lmp_queue=33`
-- `lmp_cores=40`
-- `lmp_ptile=40`
-- `scf_queue=33`
-- `scf_cores=40`
-- `scf_ptile=40`
-- `submission_backend=bsub`
+fix 100 all npt temp ${T} ${T} ${Tdamp} aniso 1000.0 1000.0 ${Pdamp}
+run 20000
+unfix 100
 
-## CLI persistent defaults
+fix 101 all npt temp ${T} ${T} ${Tdamp} aniso 10000.0 10000.0 ${Pdamp}
+run 20000
+unfix 101
+```
 
-Source: `cli_defaults.py`
+Example for a continuous pressure ramp:
 
-### `ocbf train`
+```lammps
+variable T equal 300
+variable dt equal 0.001
+variable nevery equal 100
+variable Tdamp equal "v_dt * 100"
+variable Pdamp equal "v_dt * 1000"
 
-- `template=l2k3`
-- `min_dist=null`
-- `max_dist=null`
-- `radial_basis_size=null`
-- `backend=bsub`
-- `queue=33`
-- `cores=40`
-- `ptile=40`
-- `max_iter=3000`
-- `sus2_exe=/work/phy-huangj/app/SUS2-MLIP/bin/mlp-sus2`
-- `train_env=null`
-- `work_dir=null`
-- `submit=false`
-- `elements=null`
-- `keep_order=false`
+velocity all create ${T} ${random} mom yes rot yes dist gaussian
+thermo 100
 
-### `ocbf mp-search`
+fix 100 all npt temp ${T} ${T} ${Tdamp} aniso 1000.0 400000.0 ${Pdamp}
+run 200000
+unfix 100
+```
 
-- `api_key=null`
-- `output_dir=mp-stru`
-- `csv_name=summary.csv`
+For LAMMPS `metal`, pressure is in `bar`.
 
-## Post-sampling training defaults
+## Fixed Pressure Points
 
-Source: `high_precision_training.py`
+User input:
 
-- `enabled=false`
-- `input_xyz=null`
-- `work_dir=high_precision_training`
-- `template_type=l2k3`
-- `model_name=trained.mtp`
-- `elements=null`
-- `sort_ele=true`
-- `r_max=null`
-- `submit=true`
-- `wait=true`
-- `command_prefix=null`
-- `max_iter=2000`
+```text
+temperatures = 300, 500 K
+pressure mode = fixed pressure points
+pressures = 1, 10, 50 kbar
+duration = 20 ps per pressure point
+save interval = 100 steps
+```
 
-### `training.predict`
+Expected behavior:
 
-- `enabled=true`
-- `input_xyz=null`
-- `calc_type=sus2`
-- `output_dir=prediction`
-- `output_format=extxyz`
-- `suffix=pred`
-- `device=cpu`
-- `num_workers=1`
-- `chunksize=1`
-- `log_level=INFO`
+- Generate one NPT input per temperature.
+- Each temperature input contains three constant-pressure segments.
+- Convert to bar:
+  - `1 kbar -> 1000 bar`
+  - `10 kbar -> 10000 bar`
+  - `50 kbar -> 50000 bar`
+- In each segment, `P_start = P_stop`.
 
-### `training.plot`
+## Continuous Pressure Ranges
 
-- `enabled=true`
-- `output=sus2_errors.jpg`
-- `mlip_name=SUS2`
-- `force_mode=magnitude`
-- `num_processes=8`
-- `keep_temp=false`
-- `show_r2=true`
-- `save_data=false`
-- `fontsize=30`
-- `tick_labelsize=30`
-- `legend_fontsize=20`
-- `title_fontsize=32`
-- `annotation_fontsize=20`
-- `cbar_fontsize=28`
-- `cbar_tick_size=22`
-- `linewidth=4`
-- `scatter_size=10`
-- `bins=120`
-- `dpi=300`
-- `figsize=[30,10]`
+User input:
+
+```text
+temperatures = 300, 500 K
+pressure mode = continuous pressure ranges
+pressure ranges = 1-400 kbar
+duration = 200 ps per range
+save interval = 100 steps
+```
+
+Expected behavior:
+
+- Generate one NPT input per temperature.
+- Each temperature input contains one pressure-ramp segment.
+- Convert `1-400 kbar` to `1000-400000 bar`.
+- In each segment, `P_start != P_stop`.
+
+For multiple ranges such as `1-50, 50-100, 100-400 kbar`, write three sequential NPT segments.
+
+## Step And Dump Conversion
+
+If the template time step is `dt = 0.001 ps`, then:
+
+```text
+steps = duration_ps / dt_ps
+```
+
+Examples:
+
+- `20 ps / 0.001 ps = 20000 steps`
+- `200 ps / 0.001 ps = 200000 steps`
+
+The save interval controls:
+
+```lammps
+variable nevery equal SAVE_INTERVAL_STEPS
+```
+
+If different pressure segments need different save intervals, either create segment-specific dump names or require one global interval to avoid dump collisions.
+
+## Files To Modify For Native Support
+
+If native pressure schedules are not implemented, the likely touch points are:
+
+- `source/DCBF/example/sample/init/lmp_in.py`: replace fixed NPT pressure with pressure segment insertion.
+- `source/DCBF/dcbf/dcbf/das/lmps_scripts.py`: pass pressure mode/ranges into `lammps_scripts()` and render NPT segments.
+- `source/DCBF/dcbf/dcbf/das/mkdir.py`: pass pressure schedule from MD config to each generated NPT input.
+- `source/DCBF/dcbf/dcbf/das/gen_while_loop.py`: preserve pressure schedule when copying/modifying generation configs.
+
+Use `dcbf run --prepare-only` after changes and inspect generated `lmp.in` before submitting jobs.
