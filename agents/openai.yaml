@@ -1,8 +1,8 @@
 interface:
-  display_name: "DCBF Training"
+  display_name: "DCBF"
   short_description: "Install-aware guide for DCBF sampling, coverage, reduce, and SUS2"
   brand_color: "#0F5E9C"
-  default_prompt: "Use $dcbf-training to check the remembered DCBF installation for this machine first; if none is valid, ask whether to install the latest GitHub one-button release or register an existing directory, remember the verified path, and then ask only the missing workflow questions."
+  default_prompt: "Use $dcbf to check the remembered DCBF installation for this machine first; if none is valid, ask whether to install the latest GitHub one-button release or register an existing directory, remember the verified path, and then ask only the missing workflow questions."
 
 policy:
   allow_implicit_invocation: true

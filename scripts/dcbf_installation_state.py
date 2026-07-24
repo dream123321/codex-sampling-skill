@@ -14,7 +14,7 @@ import tempfile
 
 SCHEMA_VERSION = 1
 DEFAULT_REPOSITORY = "https://github.com/dream123321/DCBF"
-DEFAULT_STATE_PATH = Path.home() / ".dcbf" / "dcbf_training_installations.json"
+DEFAULT_STATE_PATH = Path.home() / ".dcbf" / "dcbf_installations.json"
 
 
 def utc_now() -> str:
@@ -194,7 +194,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--state-file",
-        help="override the state file; defaults to ~/.dcbf/dcbf_training_installations.json",
+        help="override the state file; defaults to ~/.dcbf/dcbf_installations.json",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 

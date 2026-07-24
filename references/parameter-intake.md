@@ -15,7 +15,7 @@ Do not mix installation questions with the scientific sampling questionnaire unl
 
 ## Explicit Invocation Starter
 
-After installation is resolved, when the user invokes `$dcbf-training` without a complete request, begin with at most three questions:
+After installation is resolved, when the user invokes `$dcbf` without a complete request, begin with at most three questions:
 
 1. What DCBF task should be handled?
 2. What deployment, config, workspace, dataset, or model is the target?

@@ -1,15 +1,15 @@
 ---
-name: dcbf-training
+name: dcbf
 description: Use when installing, preparing, running, explaining, reviewing, or debugging the current DCBF one-button deployment, including initial-dataset generation, DCBF/DAS sampling, SUS2MD/LAMMPS schedules, DFT labeling, SUS2 training, coverage-pca, database reduce, prediction, relaxation, plotting, PLUMED, and MCMD workflows on HPC systems. On first use for a target machine, ask whether to install the GitHub release or register an existing deployment, then remember the verified installation directory.
 ---
 
-# DCBF Training
+# DCBF
 
 Treat the active deployment, its CLI help, and its example JSON files as the source of truth. This skill records the current public interface but must not override newer code discovered in the deployment.
 
 ## Installation State Gate
 
-Run this gate before normal task intake whenever `$dcbf-training` is explicitly invoked:
+Run this gate before normal task intake whenever `$dcbf` is explicitly invoked:
 
 1. Use `local` for local work or a stable endpoint such as `user@host:port` for remote work.
 2. Query the remembered installation:

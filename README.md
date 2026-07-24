@@ -1,4 +1,4 @@
-# dcbf-training
+# dcbf
 
 Codex skill for installing and operating the DCBF one-button deployment: create-init, seed structures, DFT setup, multi-temperature and multi-pressure MD sampling, SUS2/MLIP training, PCA coverage, prediction, plotting, reduction, relaxation, and troubleshooting.
 
