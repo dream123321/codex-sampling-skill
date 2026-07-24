@@ -32,23 +32,43 @@ Do not present the initial-dataset builder, PLUMED, or MCMD as peer task categor
 
 ## Build Or Expand A Training Dataset
 
-Confirm or infer:
+Ask one grouped questionnaire. Omit values already available from the request, active config, or workspace:
 
-1. Deployment root, config path, `run_dir`, and whether to create templates with `dcbf create-init`.
-2. Seed structures under `stru/`, their formats, elements, atom counts, and intended supercell size.
-3. Starting data: an existing labeled dataset, a builder-generated dataset, or `augment_existing`.
-4. DFT engine (`vasp`, `abacus`, `cp2k`, or `qe`), templates, pseudopotentials/basis files, environment, command, queue, cores, and ptile.
-5. Scheduler backend (`bsub` or `sbatch`) and resources for training, LAMMPS, and SCF.
-6. LAMMPS sampling mode: standard SUS2MD, PLUMED metadynamics, or MCMD-style custom MD.
-7. NPT/NVT loop schedule, temperatures, timestep, run length, dump interval, and pressure behavior in `init/lmp_in.py`.
-8. Selection mode and its thresholds/budgets.
-9. Candidate trigger and maximum generations.
-10. Coverage plotting and automatic query MD requirements.
-11. Final training, prediction, plotting, and summary bundle requirements.
+```text
+可以，我会基于 DCBF 默认模板准备。请一次性确认：
 
-Use the standard `init/lmp_in.py` for ordinary SUS2MD. PLUMED and MCMD replace that active template with their corresponding examples; they do not create separate DCBF workflows.
+1. 初始数据集构建
+   选择：从头构建、使用已有带标签数据集、在已有数据集上继续增广。
+   请提供种子结构和已有数据集路径。
+
+2. SUS2-MD 采样
+   选择：普通 SUS2MD（推荐）、PLUMED、MCMD。
+   再选择 NPT、NVT 或两者。推荐温度为 100–900 K，间隔 100 K。
+
+3. 服务器和 DFT
+   提供 LSF/Slurm、训练/MD/DFT 的队列和核数、DFT 引擎、环境与运行命令。
+   DFT 模板、赝势和基组等文件需要提供到 init/。
+
+4. 参数设置与执行
+   默认：保留模板中的 MD 时长和 DCBF/DAS 筛选参数。
+   自定义：请说明需要修改的 MD 或筛选参数。
+   不确定：回复“查看参数”，我会列出可调参数和当前默认值。
+   同时选择：仅 prepare-only，或检查通过后提交并监控。
+```
+
+Active sampling always uses SUS2/LAMMPS. Use the standard `init/lmp_in.py` for ordinary SUS2MD. PLUMED and MCMD replace that active template with their corresponding examples; they do not create separate DCBF workflows.
+
+### Response Branches
+
+- **Default**: retain the active example's MD duration, timestep, dump interval, selection mode, thresholds, budgets, `state_population`, `candidate_trigger`, `max_gen`, final training, and output settings. Do not ask about them again.
+- **Custom**: expand only the MD or selection fields named by the user.
+- **View parameters**: read the active JSON and `init/lmp_in.py`, then show the MD and selection groups with their current values. Do not paste the complete JSON.
+- **Default and submit**: populate required paths/resources, run `dcbf run CONFIG.json --prepare-only`, and submit and monitor after validation succeeds.
+- **Prepare only**: stop after validation and report the generated paths and checks.
 
 ## NPT/NVT Schedule Questions
+
+Use this section only for custom MD settings or validation:
 
 - Is the entire ensemble disabled (`null`) or skipped only at selected main indices (`[]`)?
 - When both lists exist, do they have equal outer length?
@@ -67,6 +87,8 @@ This produces `main_0=NPT 200 K`, `main_1=NVT 300 K`, and `main_2=NPT+NVT 600 K`
 
 ## DCBF Selection Questions
 
+Use this section only for custom selection settings or a request to view parameters:
+
 - `coverage_calculation_mode`: per configuration or global?
 - Enable mean descriptor coverage?
 - Use two-body, three-body, or both?
@@ -76,14 +98,16 @@ This produces `main_0=NPT 200 K`, `main_1=NVT 300 K`, and `main_2=NPT+NVT 600 K`
 - For per-configuration mean descriptors, keep the default low-coverage cutoff of 90 percent?
 - How many candidates must accumulate before DFT (`candidate_trigger`)?
 
-### Starting Dataset Builder Questions
+### Initial Dataset Construction Questions
 
-- Use `generated_only` or `augment_existing`?
-- Existing labeled `xyz_input` path, if augmenting.
+- Choose from-scratch `generated_only`, an existing labeled xyz with the builder disabled, or `augment_existing`.
+- Provide `xyz_input` for the existing-data and augment-existing paths.
 - Enable random displacement, phonon displacement, MD, or a combination?
 - Supercell, strain list, displacement counts, displacement magnitude, and random seed.
 - Builder MD calculator/model, element mapping, temperature, pressure, timestep, NPT/NVT steps, intervals, and worker count.
 - DFT task count and force threshold for newly generated candidates.
+
+Keep values from the active example when the user chooses defaults. Ask for builder details only when the user requests customization or when an enabled method is missing a required model/input.
 
 ## Coverage-PCA Questions
 

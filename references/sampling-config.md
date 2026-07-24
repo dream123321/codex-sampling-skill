@@ -61,6 +61,19 @@ This creates NPT 200 K, then NVT 300 K, then both ensembles at 600 K.
 
 The schedule selects temperatures only. MD steps, timestep, dump interval, thermostat/barostat, and NPT pressure are defined by the active `init/lmp_in.py` template.
 
+### Recommended New-Case Temperatures
+
+For a new generic dataset-construction case, recommend `100, 200, 300, 400, 500, 600, 700, 800, 900 K`. Ask whether this sequence applies to NPT, NVT, or both; do not choose the ensemble silently. This is a recommendation, not a built-in code default.
+
+### Optional Parameter Menu
+
+When the user chooses default parameters, retain the active example values and do not expand this menu. When the user asks to customize or view parameters, show only:
+
+- MD: NPT/NVT duration, timestep, dump/trajectory interval, pressure, temperature schedule, and the selected standard/PLUMED/MCMD template.
+- Selection: DCBF/DAS mode, coverage thresholds, selection budgets, `state_population`, `body_list`, `candidate_trigger`, plateau settings, and `max_gen`.
+
+Read and report current values from the active JSON and `init/lmp_in.py`; do not duplicate a potentially stale default table in the intake response.
+
 ## Scheduler
 
 | Field | Meaning |

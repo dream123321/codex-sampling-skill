@@ -1,6 +1,18 @@
-# Initial Dataset Builder
+# Initial Dataset Construction
 
 Use `init_dataset.builder` to generate and label an initial dataset before active sampling. The builder can use random distortions, phonon-like displacements, ASE MD, or any combination.
+
+## Required Intake And Defaults
+
+Classify the initial dataset once:
+
+- From scratch: seed structures are required; enable the builder with `generated_only`.
+- Existing labeled dataset: `xyz_input` is required; disable the builder and use the dataset directly.
+- Augment existing: both seed structures and `xyz_input` are required; enable `augment_existing`.
+
+Seed structures belong under `stru/`. DFT templates, scheduler templates, pseudopotentials, basis files, and other engine-specific inputs belong under `init/`.
+
+When the user chooses defaults, copy the active deployment's `source/DCBF/example/sample` settings and do not ask for every strain, displacement, supercell, MD, or random-seed value. Ask only when the user requests customization or an enabled construction method lacks a required model or input.
 
 ## Dataset Modes
 

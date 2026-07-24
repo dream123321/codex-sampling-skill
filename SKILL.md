@@ -81,7 +81,35 @@ For a vague invocation, a suitable first response is:
 
 After the first answers, load only the relevant section of [references/parameter-intake.md](references/parameter-intake.md) and ask the next smallest set of missing questions.
 
-For dataset construction, treat the initial-dataset builder and active sampling as parts of one workflow. Standard SUS2MD, PLUMED, and MCMD are alternative LAMMPS sampling modes, not top-level DCBF task categories.
+For dataset construction, treat the initial-dataset builder and active sampling as parts of one workflow. Active sampling always uses SUS2/LAMMPS; standard SUS2MD, PLUMED, and MCMD are alternative LAMMPS sampling modes, not top-level DCBF task categories.
+
+When the user selects dataset construction, collect the required decisions once instead of giving a long tutorial or asking a second advanced-settings question:
+
+```text
+可以，我会基于 DCBF 默认模板准备。请一次性确认：
+
+1. 初始数据集构建
+   选择：从头构建、使用已有带标签数据集、在已有数据集上继续增广。
+   请提供种子结构和已有数据集路径。
+
+2. SUS2-MD 采样
+   选择：普通 SUS2MD（推荐）、PLUMED、MCMD。
+   再选择 NPT、NVT 或两者。推荐温度为 100–900 K，间隔 100 K。
+
+3. 服务器和 DFT
+   提供 LSF/Slurm、训练/MD/DFT 的队列和核数、DFT 引擎、环境与运行命令。
+   DFT 模板、赝势和基组等文件需要提供到 init/。
+
+4. 参数设置与执行
+   默认：保留模板中的 MD 时长和 DCBF/DAS 筛选参数。
+   自定义：请说明需要修改的 MD 或筛选参数。
+   不确定：回复“查看参数”，我会列出可调参数和当前默认值。
+   同时选择：仅 prepare-only，或检查通过后提交并监控。
+```
+
+Inspect existing files first and omit anything already known. If the user chooses defaults, do not ask again about MD duration, timestep, dump interval, selection mode, thresholds, budgets, `state_population`, `candidate_trigger`, or `max_gen`. If the user chooses custom settings, expand only the named MD or selection fields. If the user asks to view parameters, show those two groups with values read from the active template.
+
+Treat “default and submit” as explicit submission intent: fill the required paths/resources, run `--prepare-only`, and submit and monitor only after that validation succeeds. A `prepare-only` choice stops after validation.
 
 When the user selects `reduce`, ask which function is intended:
 

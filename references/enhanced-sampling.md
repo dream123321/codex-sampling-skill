@@ -1,5 +1,7 @@
 # PLUMED And MCMD Templates
 
+These are three SUS2/LAMMPS active-sampling modes, not three different MLIP calculators. The active potential remains SUS2; the selected LAMMPS template changes the MD workflow.
+
 The sampling workflow imports exactly one active LAMMPS template:
 
 ```text
