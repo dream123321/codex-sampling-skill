@@ -1,8 +1,8 @@
 interface:
   display_name: "DCBF"
-  short_description: "Install-aware guide for DCBF sampling, coverage, reduce, and SUS2"
+  short_description: "Build datasets, reduce databases, analyze coverage, and run SUS2"
   brand_color: "#0F5E9C"
-  default_prompt: "Use $dcbf to check the remembered DCBF installation for this machine first; if none is valid, ask whether to install the latest GitHub one-button release or register an existing directory, remember the verified path, and then ask only the missing workflow questions."
+  default_prompt: "Use $dcbf to check the remembered installation first, then ask whether the goal is dataset construction, candidate-only or reference-guided reduction, dataset analysis, potential training/use, or DCBF management. Treat PLUMED and MCMD as LAMMPS sampling modes inside dataset construction."
 
 policy:
   allow_implicit_invocation: true

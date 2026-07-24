@@ -12,13 +12,13 @@ Only `candidate_only` and `reference_guided` are valid modes. Old `direct` and `
 
 ### `candidate_only`
 
-Self-reduces `reduce.input_xyz`. It builds descriptor histograms from the candidate set itself and greedily selects a small set that represents every occupied descriptor state.
+Self-distills `reduce.input_xyz`. It builds descriptor histograms from the candidate set itself and greedily selects a smaller structure subset that represents its occupied descriptor states.
 
-When no `current_xyz` or `interval_ref_xyz` is supplied, this is true self-deduplication. If a reference path is supplied, the candidate-only branch can instead select against that reference.
+Use this mode for candidate-set self-reduction. For selection against an existing database, use `reference_guided` rather than relying on reference paths in a `candidate_only` config.
 
 ### `reference_guided`
 
-Selects structures from `reduce.input_xyz` that add descriptor-space coverage beyond `reduce.current_xyz`. `interval_ref_xyz` defines the interval/reference baseline and defaults to `current_xyz`. Large inputs are processed in chunks.
+Uses `reduce.current_xyz` as the existing database and selects structures from `reduce.input_xyz` that add descriptor-space coverage by visiting missing or insufficiently populated states. `interval_ref_xyz` defines the interval/reference baseline and defaults to `current_xyz`. Large inputs are processed in chunks.
 
 ## Configuration
 

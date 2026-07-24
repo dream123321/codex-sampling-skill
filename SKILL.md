@@ -1,6 +1,6 @@
 ---
 name: dcbf
-description: Use when installing, preparing, running, explaining, reviewing, or debugging the current DCBF one-button deployment, including initial-dataset generation, DCBF/DAS sampling, SUS2MD/LAMMPS schedules, DFT labeling, SUS2 training, coverage-pca, database reduce, prediction, relaxation, plotting, PLUMED, and MCMD workflows on HPC systems. On first use for a target machine, ask whether to install the GitHub release or register an existing deployment, then remember the verified installation directory.
+description: Use when installing, preparing, running, explaining, reviewing, or debugging the current DCBF one-button deployment for constructing and expanding MLIP training datasets, DCBF/DAS active sampling with standard SUS2MD or PLUMED/MCMD LAMMPS modes, DFT labeling, candidate-only or reference-guided database reduction, coverage analysis, SUS2 training, prediction, relaxation, and plotting on HPC systems. On first use for a target machine, ask whether to install the GitHub release or register an existing deployment, then remember the verified installation directory.
 ---
 
 # DCBF
@@ -47,7 +47,12 @@ After the installation gate, address the user directly and make the interaction 
 
 1. If the request is empty, only names the skill, or is too vague to identify the work, ask 1-3 short questions before reading remote files, editing configs, or running jobs.
 2. Ask for the missing parts of:
-   - task type: new sampling, inspect/debug/resume, dataset builder, coverage-pca, reduce, train, relax/predict/plot, or PLUMED/MCMD
+   - task type:
+     1. build or expand a training dataset with DCBF/DAS
+     2. distill or select database structures with `reduce`
+     3. analyze a dataset with `coverage-pca` or `efs-distri`
+     4. train or use a potential with `train`, `predict-xyz`, `relax`, or `plot-errors`
+     5. install, inspect, debug, resume, or manage DCBF
    - target: deployment root, JSON config, workspace, dataset, or model path
    - execution level: explain only, inspect, edit, `--prepare-only`, submit, submit and monitor, or resume
 3. Ask in the user's language. Put the recommended/default choice first when offering choices.
@@ -58,12 +63,36 @@ After the installation gate, address the user directly and make the interaction 
 For a vague invocation, a suitable first response is:
 
 ```text
-你这次想处理哪类 DCBF 任务：新建采样、检查/续跑、coverage-pca、reduce、训练，还是 PLUMED/MCMD？
+这次想处理哪类 DCBF 工作？
+
+1. 构建或扩充训练数据集
+   新建、续跑或排查 DCBF/DAS 主动学习采样。
+2. 数据库筛选与蒸馏（reduce）
+   对候选结构自身去冗余，或者参考现有训练集筛选新增结构。
+3. 数据集分析
+   coverage-pca 或能量、力、应力分布分析。
+4. 训练或使用势函数
+   train、predict-xyz、relax、plot-errors。
+5. 安装、检查或管理 DCBF
+
 目标配置、workspace、数据集或模型路径是什么？
-这次希望我只解释/检查，还是修改、prepare-only、提交并等待？
+这次希望我只解释/检查，还是修改、prepare-only、提交并等待或续跑？
 ```
 
 After the first answers, load only the relevant section of [references/parameter-intake.md](references/parameter-intake.md) and ask the next smallest set of missing questions.
+
+For dataset construction, treat the initial-dataset builder and active sampling as parts of one workflow. Standard SUS2MD, PLUMED, and MCMD are alternative LAMMPS sampling modes, not top-level DCBF task categories.
+
+When the user selects `reduce`, ask which function is intended:
+
+```text
+请选择 reduce 模式：
+
+1. candidate_only
+   候选集自蒸馏：只分析 input_xyz 自身，从中选择能够代表其描述符状态的较小结构子集。
+2. reference_guided
+   参考数据库引导筛选：以 current_xyz 为已有训练集，从 input_xyz 中选择补充缺失或低布居状态的新结构。
+```
 
 ## Source Of Truth
 
@@ -89,12 +118,13 @@ Read [references/current-paths.md](references/current-paths.md) for verified pat
 
 ## Load The Relevant Reference
 
-- Sampling JSON, scheduler, selection modes, thresholds, and training block: [references/sampling-config.md](references/sampling-config.md).
-- Initial dataset construction and `augment_existing`: [references/dataset-builder.md](references/dataset-builder.md).
+- Building or expanding a training dataset:
+  - Sampling JSON, scheduler, selection modes, thresholds, and training block: [references/sampling-config.md](references/sampling-config.md).
+  - Initial dataset construction and `augment_existing`: [references/dataset-builder.md](references/dataset-builder.md).
+  - Standard SUS2MD, PLUMED, and MCMD sampling templates: [references/enhanced-sampling.md](references/enhanced-sampling.md).
 - PCA coverage CLI/JSON, 1D/2D meanings, grids, PCA fit, and automatic query MD: [references/coverage-pca.md](references/coverage-pca.md).
-- Reduce modes and `state_population`: [references/reduce.md](references/reduce.md).
+- Candidate-only self-distillation and reference-guided reduce: [references/reduce.md](references/reduce.md).
 - Direct CLI commands and option meanings: [references/command-reference.md](references/command-reference.md).
-- PLUMED and MCMD templates: [references/enhanced-sampling.md](references/enhanced-sampling.md).
 - Stable defaults, units, path precedence, and removed names: [references/defaults.md](references/defaults.md).
 - Questions to collect before preparing or submitting work: [references/parameter-intake.md](references/parameter-intake.md).
 - GitHub installation and remembered-path behavior: [references/installation.md](references/installation.md).
@@ -131,7 +161,7 @@ dcbf create-init
 
 `create-init` aborts if any target template path already exists; do not overwrite user inputs.
 
-Validate and run sampling:
+Build or expand a training dataset:
 
 ```bash
 dcbf run dcbf.init_dataset.vasp.test.json --prepare-only
