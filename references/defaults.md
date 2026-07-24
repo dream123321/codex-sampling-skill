@@ -1,140 +1,149 @@
-# Defaults And Pressure MD Pattern
+# Defaults, Units, And Precedence
 
-This reference records the intended behavior for DCBF MD and training workflows.
+These are code defaults verified on 2026-07-20. Example JSON files and `~/.dcbf/cli_defaults.json` may override them.
 
-## Important Existing Defaults
+## Precedence
 
-- Deployment CLI: `dcbf`
-- Direct train template: `l2k3`
-- Direct train queue: `33`
-- Direct train cores/ptile: `40/40`
-- Direct train max iterations: `3000`
-- Sampling example DFT engine: `vasp`
-- VASP queue/cores/ptile in examples: `33/40/40`
-- Builder MD default pressure in code: `1.01325 bar`
-- User-facing default pressure, when requested: `1 bar`
+- Direct CLI tools: explicit option > saved `~/.dcbf/cli_defaults.json` > built-in default.
+- Sampling JSON: explicit field > code default.
+- Coverage JSON: explicit `sampling.coverage_plot` field > coverage CLI default; scheduler executable/environment values are used when coverage-specific values are absent.
+- Relative config paths resolve from the JSON directory; many generated outputs resolve under `run_dir`.
+- Always inspect `dcbf <command> -h` for the live `current:` CLI values.
 
-## Current Code Caveat
-
-The current sampling template historically uses `main_loop_npt` as a temperature list and `lammps_scripts(ensemble, temp, ...)` passes only temperature into `lmp.in`.
-
-If the user asks for multiple pressures, check whether the active deployment has been updated. If not, implement or plan a code change that writes pressure segments into `lmp.in`.
-
-## Desired `lmp.in` Behavior
-
-Each temperature should produce one NPT task/input. Inside that `lmp.in`, run all requested pressure conditions in sequence.
-
-Example for fixed pressure points at one temperature:
-
-```lammps
-variable T equal 300
-variable dt equal 0.001
-variable nevery equal 100
-variable Tdamp equal "v_dt * 100"
-variable Pdamp equal "v_dt * 1000"
-
-velocity all create ${T} ${random} mom yes rot yes dist gaussian
-thermo 100
-
-fix 100 all npt temp ${T} ${T} ${Tdamp} aniso 1000.0 1000.0 ${Pdamp}
-run 20000
-unfix 100
-
-fix 101 all npt temp ${T} ${T} ${Tdamp} aniso 10000.0 10000.0 ${Pdamp}
-run 20000
-unfix 101
-```
-
-Example for a continuous pressure ramp:
-
-```lammps
-variable T equal 300
-variable dt equal 0.001
-variable nevery equal 100
-variable Tdamp equal "v_dt * 100"
-variable Pdamp equal "v_dt * 1000"
-
-velocity all create ${T} ${random} mom yes rot yes dist gaussian
-thermo 100
-
-fix 100 all npt temp ${T} ${T} ${Tdamp} aniso 1000.0 400000.0 ${Pdamp}
-run 200000
-unfix 100
-```
-
-For LAMMPS `metal`, pressure is in `bar`.
-
-## Fixed Pressure Points
-
-User input:
+## Sampling Defaults
 
 ```text
-temperatures = 300, 500 K
-pressure mode = fixed pressure points
-pressures = 1, 10, 50 kbar
-duration = 20 ps per pressure point
-save interval = 100 steps
+workflow.sleep_time = 10
+workflow.max_gen = 10
+workflow.output_xyz_name = all_sample_data.xyz
+
+structure_selection common:
+  size = (1, 1, 1)
+  sort_ele = true
+  nvt_lattice_scaling_factor = [1]
+  mtp_type = l2k2
+
+mlp_encode_model:
+  encoding_cores = 2
+  dq_width_method = Freedman_Diaconis
+  dq_width = 0.01
+  dq_width_factor = 1.0
+  body_list = [two, three]
+  selection_budget_schedule = [20, 15, 10]
+  coverage_threshold_schedule = [99.5, 99.9, 99.95]
+  coverage_rate_method = mean
+  coverage_calculation_mode = per_configuration
+  candidate_trigger = 10
+  state_population = 0
+  mean_descriptor_enabled = false
+  mean_descriptor_state_population = 0
+  mean_descriptor_low_coverage_threshold = 90.0
+  plateau_generations = null
+  min_coverage_delta = null
+  report_per_configuration_details = true
+  report_state_population_zero_baseline = false
+
+dft:
+  calc_dir_num = 5
+  force_threshold = 20 eV/A
+  pending_warning_hours = null
 ```
 
-Expected behavior:
+Scheduler code defaults are queue `33`, cores `40`, and ptile `40` for training, LAMMPS, and SCF, with backend `bsub`. Real configs normally override these values.
 
-- Generate one NPT input per temperature.
-- Each temperature input contains three constant-pressure segments.
-- Convert to bar:
-  - `1 kbar -> 1000 bar`
-  - `10 kbar -> 10000 bar`
-  - `50 kbar -> 50000 bar`
-- In each segment, `P_start = P_stop`.
-
-## Continuous Pressure Ranges
-
-User input:
+## Final Training Defaults
 
 ```text
-temperatures = 300, 500 K
-pressure mode = continuous pressure ranges
-pressure ranges = 1-400 kbar
-duration = 200 ps per range
-save interval = 100 steps
+template_type = l2k3
+work_dir = high_precision_training
+model_name = trained.mtp
+max_iter = 6000
+submit = true
+wait = true
+predict.enabled = true
+plot.enabled = true
 ```
 
-Expected behavior:
+The direct `dcbf train` baseline also uses `l2k3` and `max_iter=6000`, but saved CLI defaults can change other values.
 
-- Generate one NPT input per temperature.
-- Each temperature input contains one pressure-ramp segment.
-- Convert `1-400 kbar` to `1000-400000 bar`.
-- In each segment, `P_start != P_stop`.
-
-For multiple ranges such as `1-50, 50-100, 100-400 kbar`, write three sequential NPT segments.
-
-## Step And Dump Conversion
-
-If the template time step is `dt = 0.001 ps`, then:
+## Coverage-PCA Defaults
 
 ```text
-steps = duration_ps / dt_ps
+loop_select = middle-half
+main_key = main
+query = sus2md_1000.xyz
+query_structures = all
+out_dir = xyz_pca_coverage_results
+body_list = [two, three]
+descriptor_workers = 8
+coverage_workers = 8
+coverage_mode = 2d
+coverage_grid = last-loop
+pca_fit_source = query
+width_factor = null -> 1D uses 1.0 and 2D uses 2.0
+max_plot_points = 2000000
+dpi = 300
+axis_padding = 0.1
+lammps_run_mode = scheduler
+lammps_timeout_hours = 24
+lammps_cores = scheduler.lmp_cores
 ```
 
-Examples:
+## Dataset Builder Defaults
 
-- `20 ps / 0.001 ps = 20000 steps`
-- `200 ps / 0.001 ps = 200000 steps`
+```text
+enabled = false
+dataset_mode = generated_only
+output_xyz = init_dataset/init_dataset.xyz
+report_path = init_dataset/build_report.json
+reuse_if_exists = true
 
-The save interval controls:
+random displacement:
+  supercell = [1, 1, 1]
+  strain = [1.0]
+  rattle_count = 0
+  rattle_step = 0.005 A
 
-```lammps
-variable nevery equal SAVE_INTERVAL_STEPS
+phonon displacement:
+  distance = 0.01 A
+  include_in_initial_train_set = true
+
+builder MD:
+  parallel_workers = 1
+  calc_type = nep
+  device = cpu
+  temperature = 300 K
+  pressure = 1.01325 bar
+  timestep = 1 fs
+  npt_steps = 0
+  nvt_steps = 0
+  log_interval = 100
+  traj_interval = 100
 ```
 
-If different pressure segments need different save intervals, either create segment-specific dump names or require one global interval to avoid dump collisions.
+## Units
 
-## Files To Modify For Native Support
+- Sampling temperature: K.
+- LAMMPS `metal` timestep: ps inside `lmp_in.py`; builder ASE MD timestep: fs.
+- LAMMPS `metal` pressure: bar. `1 kbar = 1000 bar`; `1 GPa = 10000 bar`.
+- Builder `pressure`: bar.
+- `force_threshold`: eV/A.
+- Relaxation `pressure`: GPa.
+- Plot stress unit: `eV` or `GPa` as selected.
+- Coverage values and thresholds: percent from 0 to 100.
 
-If native pressure schedules are not implemented, the likely touch points are:
+## Current Names Only
 
-- `source/DCBF/example/sample/init/lmp_in.py`: replace fixed NPT pressure with pressure segment insertion.
-- `source/DCBF/dcbf/dcbf/das/lmps_scripts.py`: pass pressure mode/ranges into `lammps_scripts()` and render NPT segments.
-- `source/DCBF/dcbf/dcbf/das/mkdir.py`: pass pressure schedule from MD config to each generated NPT input.
-- `source/DCBF/dcbf/dcbf/das/gen_while_loop.py`: preserve pressure schedule when copying/modifying generation configs.
+Do not use removed names. Important replacements are:
 
-Use `dcbf run --prepare-only` after changes and inspect generated `lmp.in` before submitting jobs.
+```text
+iw_method / bw_method -> dq_width_method
+iw / bw -> dq_width
+iw_scale / bw_coff -> dq_width_factor
+dynamic_iw -> dynamic_dq_width
+coverage_count_threshold -> state_population
+coverage_label -> coverage_mode
+data_modes -> body_list
+```
+
+Sampling no longer accepts public top-level `parameter` or `sampling.parameter`; use `sampling.structure_selection`. Reduce intentionally retains its own top-level `parameter` block.

@@ -1,134 +1,119 @@
 # Parameter Intake
 
-Use this checklist before generating a DCBF sampling config, modifying `lmp.in`, or launching jobs.
+Discover values from the workspace and config before asking. Ask only for choices that materially affect cost or scientific intent.
 
-## 1. Starter Files
+## Installation First
 
-If the workspace is not initialized, use:
+Before task questions, run the installation state gate from `SKILL.md`.
 
-```bash
-source /work/phy-huangj/hj_mlp/ocbf_test/dcbf_one-button_deployment/activate.sh
-dcbf create-init
+- Valid remembered path: use it without asking again.
+- No remembered path: ask whether to install from GitHub or register an existing deployment.
+- Stale remembered path: explain that validation failed and ask for a replacement path or permission to reinstall.
+- Different target host: use a separate installation entry.
+
+Do not mix installation questions with the scientific sampling questionnaire unless the user has already answered one of them.
+
+## Explicit Invocation Starter
+
+After installation is resolved, when the user invokes `$dcbf-training` without a complete request, begin with at most three questions:
+
+1. What DCBF task should be handled?
+2. What deployment, config, workspace, dataset, or model is the target?
+3. Should the result stop at explanation/inspection, edit files, run `--prepare-only`, submit, submit and monitor, or resume?
+
+Adapt the wording and choices to the user's language. Do not ask for information already present in the invocation or conversation. Once the task category is known, use only the matching section below instead of presenting the full checklist.
+
+## New Sampling Case
+
+Confirm or infer:
+
+1. Deployment root, config path, `run_dir`, and whether to create templates with `dcbf create-init`.
+2. Seed structures under `stru/`, their formats, elements, atom counts, and intended supercell size.
+3. Existing labeled dataset or builder-generated dataset.
+4. DFT engine (`vasp`, `abacus`, `cp2k`, or `qe`), templates, pseudopotentials/basis files, environment, command, queue, cores, and ptile.
+5. Scheduler backend (`bsub` or `sbatch`) and resources for training, LAMMPS, and SCF.
+6. NPT/NVT loop schedule, temperatures, timestep, run length, dump interval, and pressure behavior in `init/lmp_in.py`.
+7. Selection mode and its thresholds/budgets.
+8. Candidate trigger and maximum generations.
+9. Coverage plotting and automatic query MD requirements.
+10. Final training, prediction, plotting, and summary bundle requirements.
+
+## NPT/NVT Schedule Questions
+
+- Is the entire ensemble disabled (`null`) or skipped only at selected main indices (`[]`)?
+- When both lists exist, do they have equal outer length?
+- Does every main index contain at least one non-empty ensemble?
+- What temperature values belong to each main index?
+- If coverage query is enabled, is it acceptable to run the last non-empty NPT temperature and the last non-empty NVT temperature for every selected query structure?
+
+Example:
+
+```json
+"main_loop_npt": [[200], [], [600]],
+"main_loop_nvt": [[], [300], [600]]
 ```
 
-Then inspect the generated layout before editing:
+This produces `main_0=NPT 200 K`, `main_1=NVT 300 K`, and `main_2=NPT+NVT 600 K`.
 
-- `stru/`: seed structures
-- `init/`: DFT and LAMMPS templates
-- JSON config file, usually based on the generated or example DCBF config
+## DCBF Selection Questions
 
-Do not overwrite existing user files unless the user explicitly asks.
+- `coverage_calculation_mode`: per configuration or global?
+- Enable mean descriptor coverage?
+- Use two-body, three-body, or both?
+- What does `state_population` need to represent scientifically: any occupied state (`0`) or a minimum database population (`1`, `2`, ...)?
+- What staged coverage thresholds and structure budgets are intended?
+- Should plateau convergence be enabled? If yes, choose both `plateau_generations` and `min_coverage_delta`.
+- For per-configuration mean descriptors, keep the default low-coverage cutoff of 90 percent?
+- How many candidates must accumulate before DFT (`candidate_trigger`)?
 
-## 2. Seed Structures
+## Dataset Builder Questions
 
-Ask or infer:
+- Use `generated_only` or `augment_existing`?
+- Existing labeled `xyz_input` path, if augmenting.
+- Enable random displacement, phonon displacement, MD, or a combination?
+- Supercell, strain list, displacement counts, displacement magnitude, and random seed.
+- Builder MD calculator/model, element mapping, temperature, pressure, timestep, NPT/NVT steps, intervals, and worker count.
+- DFT task count and force threshold for newly generated candidates.
 
-- Which seed structures should be used?
-- Are they already in the generated `stru/` directory?
-- Are there one or many structures?
-- Format: `vasp`, `POSCAR`, `CONTCAR`, `cif`, `xyz`, or `extxyz`.
-- Do all seed structures contain the same intended element set?
+## Coverage-PCA Questions
 
-## 3. DFT Engine
+- Input `all_sample_data.xyz` path and `main` frame label availability.
+- Explicit query file or automatic LAMMPS query generation?
+- Query structures: all, first, index, exact labels, or globs?
+- Loop selection: `all`, `middle-half`, `uniform-half`, or explicit main values.
+- Primary mode: 2D grid coverage (default) or 1D mean descriptor coverage.
+- Grid: `last-loop` (default), `query`, or `current-loop`.
+- PCA fit source: `query` (default), `input`, or `combined`.
+- Whether a shared `width_factor` override is scientifically justified.
+- Plot elements, maximum displayed points, axis padding, and tick visibility.
 
-Ask which calculator will label selected structures.
+## Reduce Questions
 
-- Default: `vasp`.
-- Other possible engines in the codebase: `cp2k`, `qe`, `abacus`.
+- `candidate_only`: self-reduce one candidate dataset.
+- `reference_guided`: select new candidates against an existing reference set.
+- Input, current/reference, interval-reference, MTP, full element mapping, and output paths.
+- `state_population`, body list, dq-width method/factor, chunk size, append behavior, and intermediate-file retention.
+- Use the bundled universal potential or a custom model?
 
-For VASP, require:
+## Direct Training Questions
 
-- `init/INCAR`
-- `init/POTCAR`
-- `init/KPOINTS`, or an `INCAR` using `KSPACING`
-- `sampling.scheduler.dft_env`
-- `sampling.scheduler.dft_command`
-- SCF queue, cores, and ptile
-- `sampling.structure_selection.dft.calc_dir_num`
-- `sampling.structure_selection.dft.force_threshold`
+- Dataset path and element order.
+- Template (`l2k2`, `l2k3`, `l3k3`, `l4k3`, `l4k4`, or `l4k6`).
+- Optional distance/radial overrides.
+- Scheduler resources and backend.
+- Maximum iterations; current default is 6000.
+- Generate only or submit now?
+- For workflow training: wait, predict, plot errors, and output names?
 
-For CP2K/QE/ABACUS, inspect the corresponding template files and pseudo/basis maps under `init/` before writing commands.
+## Submission Decision
 
-## 4. Initial Dataset Builder
+Distinguish explicitly among:
 
-Ask whether the initial dataset comes from:
+- inspect/explain only
+- edit config only
+- `--prepare-only`
+- submit and return
+- submit and monitor/wait
+- resume an existing workspace
 
-- Existing `xyz/extxyz` via `init_dataset.xyz_input`
-- Random displacement
-- Phonon displacement
-- Short MD using `init_dataset.builder.construction_methods.md`
-
-For builder MD, collect:
-
-- Temperature in K
-- Pressure in bar if NPT is used; default is about 1 bar when the user confirms default pressure
-- Step counts and trajectory interval
-- Calculator/model used for fast MD (`nep`, `mace`, `chgnet`, `dp`, `m3gnet`, `mattersim`, or `sus2`)
-
-## 5. Sampling MD Conditions
-
-For main DCBF sampling, always ask:
-
-- Temperature list or range, for example `300, 500, 700 K`.
-- Ensemble: NPT or NVT. Multi-pressure requests imply NPT.
-- Pressure mode:
-  - fixed pressure points, for example `1, 10, 50, 100 kbar`
-  - continuous pressure ranges, for example `1-400 kbar`
-- For each pressure point or pressure range:
-  - duration in ps
-  - save interval in MD steps
-- Time step, if not using the template value.
-
-Pressure units:
-
-- User-facing pressure may be in `bar` or `kbar`.
-- LAMMPS `metal` pressure is `bar`.
-- Convert `1 kbar` to `1000 bar` when writing `lmp.in`.
-
-## 6. Structure Selection Mode
-
-Ask or infer which mode is intended:
-
-- `mlp_encode_model`: descriptor coverage mode for DCBF chemical-bond-space selection.
-- `das_adaptive`: adaptive uncertainty sampling.
-- `das_fixed`: fixed threshold uncertainty sampling.
-
-Only one mode should be enabled. If none or multiple are enabled, the current code warns and defaults toward `mlp_encode_model`.
-
-For `mlp_encode_model`, ask about:
-
-- `body_list`, commonly `["two", "three"]`
-- `selection_budget_schedule`
-- `coverage_threshold_schedule`
-- `coverage_calculation_mode`, commonly `per_configuration`
-- `mean_descriptor_enabled`, normally false unless the user asks for mean descriptor coverage
-
-## 7. Training
-
-Ask whether training should happen after sampling or directly from an existing dataset.
-
-For `dcbf train` or `training.enabled=true`, collect:
-
-- Input dataset path if not using sampling output
-- Template: `l2k2`, `l2k3`, `l3k3`, `l4k3`, `l4k4`, `l4k6`
-- Element order if the user needs a fixed order
-- `r_max` if overriding
-- `max_iter`
-- Queue, cores, ptile
-- Submit now or only generate files
-- Predict after training?
-- Plot errors after prediction?
-
-## 8. Minimal Question Set
-
-If the user gives no details, ask these first:
-
-1. Should I run `dcbf create-init` to create the default files?
-2. Which seed structures should be used, and are they in the generated `stru/` directory?
-3. Which DFT engine should label selected structures? Default VASP.
-4. For VASP, where are `INCAR`, `POTCAR`, and `KPOINTS` or `KSPACING`?
-5. What temperatures should MD run?
-6. Pressure mode: fixed pressure points or continuous pressure ranges?
-7. How many ps for each pressure condition?
-8. How many MD steps between saved structures?
-9. Should sampling output be trained into a SUS2 potential automatically?
+Do not infer permission to submit expensive jobs from a request to inspect or prepare configuration.
