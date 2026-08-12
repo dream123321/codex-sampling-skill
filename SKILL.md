@@ -127,7 +127,7 @@ When the user selects `reduce`, ask which function is intended:
 - Repository: `https://github.com/dream123321/DCBF`.
 - Installation source: the latest GitHub one-button release unless the user names a specific package or existing deployment.
 - Active deployment: the validated path remembered for the current target.
-- Current GitHub source and a live one-button deployment were cross-checked on 2026-07-24.
+- Current source, CLI help, and example configs were cross-checked against a live one-button deployment on 2026-08-12.
 - CLI: `dcbf`.
 - Verify current commands and saved defaults before editing a config:
 
@@ -172,8 +172,8 @@ Read [references/current-paths.md](references/current-paths.md) for verified pat
 
 - Use `sampling.structure_selection`; top-level `parameter` and `sampling.parameter` are rejected for sampling configs.
 - Enable exactly one selection mode: `mlp_encode_model`, `das_adaptive`, or `das_fixed`. Invalid mode counts warn and fall back to `mlp_encode_model`.
-- Use current names only: `body_list`, `dq_width_method`, `dq_width`, `dq_width_factor`, `dynamic_dq_width`, and `state_population`.
-- Do not restore removed `iw_*`, `bw_*`, `coverage_count_threshold`, `coverage_label`, `data_modes`, `loops`, or old reduce modes.
+- Use current names only: `body_list`, `dq_width_method`, `dq_width`, `dq_width_factor`, `dynamic_dq_width`, `state_population`, `dimension_min_cover_workers`, `dft_clean_dcbf_environment`, and reduce `xyz_io_mode`.
+- Do not restore removed `iw_*`, `bw_*`, `coverage_count_threshold`, `coverage_label`, `data_modes`, `loops`, old reduce modes, or the rejected `clean_dft_environment` name.
 - Elements are normally inferred and sorted by atomic number. When a custom MTP contains a fixed species mapping, provide the complete element order and use `sort_ele=false` only when that mapping requires it.
 - Relative JSON paths resolve from the JSON directory unless a feature explicitly resolves output under `run_dir`.
 - Do not copy hard-coded paths from an example blindly. Point executables and environment setup to the active deployment runtime.

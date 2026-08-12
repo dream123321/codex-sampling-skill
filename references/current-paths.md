@@ -1,6 +1,6 @@
 # Current DCBF Deployment
 
-Verified against the current source deployment on 2026-07-24. For normal use, the remembered and revalidated installation for the target machine takes precedence.
+Verified against the current source deployment on 2026-08-12. For normal use, the remembered and revalidated installation for the target machine takes precedence.
 
 ## Deployment
 

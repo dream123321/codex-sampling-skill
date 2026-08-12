@@ -89,10 +89,13 @@ Read and report current values from the active JSON and `init/lmp_in.py`; do not
 | `lmp_exe` | LAMMPS launch command; `$NP` is populated from scheduler resources. |
 | `scf_queue`, `scf_cores`, `scf_ptile` | DFT labeling resources. |
 | `scf_cal_engine` | `vasp`, `abacus`, `cp2k`, or `qe`. |
+| `dft_clean_dcbf_environment` | Clear bundled DCBF MPI/MKL/PLUMED/Python/Conda settings before `dft_env`. Default `false`; enable only when they conflict with the server DFT environment. |
 | `dft_env` | DFT environment setup. Do not assume modules are portable across servers. |
 | `dft_command` | Complete DFT launch command. |
 
 The rendered scheduler scripts export or derive `NP`, change to the submission directory, then run the configured commands. Validate environment-dependent libraries on a compute node, not only on the login node.
+
+The old `clean_dft_environment` key is rejected. Use `dft_clean_dcbf_environment` only. Keep it `false` unless a compute-node check shows that the bundled environment conflicts with VASP, ABACUS, CP2K, or QE.
 
 ## Structure Selection Layout
 
@@ -129,7 +132,8 @@ Fields belong under `modes.mlp_encode_model`.
 
 | Field | Meaning |
 |---|---|
-| `encoding_cores` | Worker/process count for descriptor encoding, default 2. |
+| `encoding_cores` | Worker/process count for descriptor encoding. Current examples use 4; if omitted, the code fallback remains 2. |
+| `dimension_min_cover_workers` | Minimum-cover strategy. Sampling examples use 4; 0 uses the joint solver, 1 is serial per-dimension, positive N limits processes, and -1 uses allocated/visible CPUs. |
 | `body_list` | Descriptor families to combine, normally `['two', 'three']`. |
 | `dq_width_method` | Histogram method: `Freedman_Diaconis`, `self_input`, `scott`, or `std`. |
 | `dq_width` | Explicit interval width used only by `self_input`. |
@@ -149,6 +153,8 @@ Fields belong under `modes.mlp_encode_model`.
 | `report_per_configuration_details` | Print per-seed coverage and selected counts. |
 
 FD width is `2 * IQR * n^(-1/3) * dq_width_factor`; when IQR is zero, the implementation falls back to a Scott-style standard-deviation width.
+
+For `dimension_min_cover_workers != 0`, DCBF solves descriptor dimensions independently, unions their selected structures, and applies deterministic global reverse pruning. It preserves the required coverage and `state_population` targets, but selected structure identities and counts can differ from the original joint solver.
 
 `state_population` examples:
 

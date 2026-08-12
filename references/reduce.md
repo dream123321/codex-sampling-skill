@@ -42,6 +42,8 @@ Uses `reduce.current_xyz` as the existing database and selects structures from `
     "input_xyz": "md.xyz",
     "state_population": 0,
     "encoding_cores": 5,
+    "xyz_io_mode": "fast_extxyz",
+    "dimension_min_cover_workers": -1,
     "append_current": false,
     "output_xyz": "sample.xyz",
     "remain_xyz": "remain.xyz",
@@ -71,6 +73,8 @@ Uses `reduce.current_xyz` as the existing database and selects structures from `
 | `interval_ref_xyz` | Grid/reference source; defaults to `current_xyz` in `reference_guided`. |
 | `chunk_size` | Candidate frames per reference-guided chunk, default 100,000. |
 | `encoding_cores` | Descriptor process count, default 5. |
+| `xyz_io_mode` | Structure I/O backend: `fast_extxyz`, `auto`, or `ase`; default `fast_extxyz`. |
+| `dimension_min_cover_workers` | Minimum-cover strategy, default `-1`: 0 joint, 1 serial per-dimension, positive N limited parallelism, or -1 allocated/visible CPUs. |
 | `state_population` | State-population target/threshold; details below. |
 | `append_current` | Prepend `current_xyz` to selected candidates in `output_xyz`, default true. |
 | `keep_intermediate` | Keep descriptor intermediates, default false. |
@@ -78,6 +82,16 @@ Uses `reduce.current_xyz` as the existing database and selects structures from `
 | `remain_xyz` | Unselected candidate frames; default `dcbf_reduce_remain.xyz`. |
 | `report_json` | Counts, effective settings, paths, timing, and selection basis. |
 | `work_dir` | Temporary/intermediate root, default `.dcbf_reduce_work`. |
+
+## XYZ I/O And Minimum Cover
+
+- `fast_extxyz`: fastest strict path for standard EXTXYZ. It indexes frame byte ranges, copies original frame blocks, and generates CFG shards in parallel with `encoding_cores`, preserving headers, labels, and numeric text.
+- `auto`: try the fast path and fall back to ASE for unsupported or nonstandard XYZ/EXTXYZ and `.traj` inputs.
+- `ase`: force the legacy ASE read-and-reserialize path.
+
+Use `auto` when input compatibility is uncertain. Strict `fast_extxyz` raises an error instead of silently changing backends.
+
+For nonzero `dimension_min_cover_workers`, reduce unions independently solved descriptor dimensions and then applies deterministic global reverse pruning. Coverage and population targets are retained, although selected structures can differ from `dimension_min_cover_workers=0`.
 
 ## `state_population`
 
@@ -94,5 +108,7 @@ For values greater than one, greedy multi-cover counts repeated local environmen
 ## Outputs And Labels
 
 `sample.xyz` and `remain.xyz` preserve the original atoms and any existing energy, force, stress, and info labels. Reduce does not calculate missing labels; unlabeled inputs can still be reduced and remain unlabeled.
+
+`report.json` records the requested and effective XYZ I/O backend, fallback reasons, and minimum-cover mode, worker counts, task counts, and timing.
 
 For `reference_guided` with `append_current=true`, output is the existing dataset followed by newly selected candidate structures. `remain.xyz` contains only unselected candidates.

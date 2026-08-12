@@ -1,6 +1,6 @@
 # Defaults, Units, And Precedence
 
-These are code defaults verified on 2026-07-20. Example JSON files and `~/.dcbf/cli_defaults.json` may override them.
+These defaults were verified against the current source and examples on 2026-08-12. Example JSON files and `~/.dcbf/cli_defaults.json` may override them.
 
 ## Precedence
 
@@ -24,7 +24,8 @@ structure_selection common:
   mtp_type = l2k2
 
 mlp_encode_model:
-  encoding_cores = 2
+  encoding_cores = 4 in current examples; omitted-field code fallback = 2
+  dimension_min_cover_workers = 4
   dq_width_method = Freedman_Diaconis
   dq_width = 0.01
   dq_width_factor = 1.0
@@ -47,9 +48,32 @@ dft:
   calc_dir_num = 5
   force_threshold = 20 eV/A
   pending_warning_hours = null
+
+scheduler:
+  dft_clean_dcbf_environment = false
 ```
 
 Scheduler code defaults are queue `33`, cores `40`, and ptile `40` for training, LAMMPS, and SCF, with backend `bsub`. Real configs normally override these values.
+
+`dimension_min_cover_workers=0` uses the original joint solver. `1`, positive `N`, and `-1` use serial per-dimension solving, at most `N` worker processes, and all scheduler-allocated or affinity-visible CPUs respectively. Sampling examples use `4`; every nonzero mode merges per-dimension results and applies deterministic global reverse pruning.
+
+## Reduce Defaults
+
+```text
+mode = candidate_only
+encoding_cores = 5
+xyz_io_mode = fast_extxyz
+dimension_min_cover_workers = -1
+state_population = 0
+chunk_size = 100000
+append_current = true
+keep_intermediate = false
+output_xyz = dcbf_reduce_sample.xyz
+remain_xyz = dcbf_reduce_remain.xyz
+work_dir = .dcbf_reduce_work
+```
+
+Reduce examples may explicitly raise `encoding_cores` to match their scheduler allocation. This does not change the omitted-field code default of `5`.
 
 ## Final Training Defaults
 
@@ -144,6 +168,7 @@ dynamic_iw -> dynamic_dq_width
 coverage_count_threshold -> state_population
 coverage_label -> coverage_mode
 data_modes -> body_list
+clean_dft_environment -> dft_clean_dcbf_environment
 ```
 
 Sampling no longer accepts public top-level `parameter` or `sampling.parameter`; use `sampling.structure_selection`. Reduce intentionally retains its own top-level `parameter` block.

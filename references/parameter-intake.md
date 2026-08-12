@@ -62,7 +62,7 @@ Active sampling always uses SUS2/LAMMPS. Use the standard `init/lmp_in.py` for o
 
 - **Default**: retain the active example's MD duration, timestep, dump interval, selection mode, thresholds, budgets, `state_population`, `candidate_trigger`, `max_gen`, final training, and output settings. Do not ask about them again.
 - **Custom**: expand only the MD or selection fields named by the user.
-- **View parameters**: read the active JSON and `init/lmp_in.py`, then show the MD and selection groups with their current values. Do not paste the complete JSON.
+- **View parameters**: read the active JSON and `init/lmp_in.py`, then show MD, selection, minimum-cover worker, and DFT-environment-cleanup values. Do not paste the complete JSON.
 - **Default and submit**: populate required paths/resources, run `dcbf run CONFIG.json --prepare-only`, and submit and monitor after validation succeeds.
 - **Prepare only**: stop after validation and report the generated paths and checks.
 
@@ -97,6 +97,7 @@ Use this section only for custom selection settings or a request to view paramet
 - Should plateau convergence be enabled? If yes, choose both `plateau_generations` and `min_coverage_delta`.
 - For per-configuration mean descriptors, keep the default low-coverage cutoff of 90 percent?
 - How many candidates must accumulate before DFT (`candidate_trigger`)?
+- Use the per-dimension minimum-cover strategy, or set `dimension_min_cover_workers=0` for the original joint solver? If parallel, use the example value `4` or another allocated worker count?
 
 ### Initial Dataset Construction Questions
 
@@ -138,7 +139,11 @@ First ask which reduce function is intended:
 - `reference_guided`: use `current_xyz` as the existing database and select structures from `input_xyz` that visit missing or insufficiently populated states. Bins with database population `<= state_population` are insufficient.
 - Input, current/reference, interval-reference, MTP, full element mapping, and output paths.
 - `state_population`, body list, dq-width method/factor, chunk size, append behavior, and intermediate-file retention.
+- XYZ I/O backend: strict `fast_extxyz` (default), fallback-capable `auto`, or forced `ase`?
+- Minimum-cover strategy: `0` joint, `1` serial per-dimension, positive `N`, or `-1` allocated/visible CPUs (reduce default)?
 - Use the bundled universal potential or a custom model?
+
+For server/DFT setup, keep `dft_clean_dcbf_environment=false` by default. Ask whether to enable it only when bundled MPI/MKL/PLUMED/Python variables conflict with the compute-node DFT environment.
 
 ## Direct Training Questions
 
