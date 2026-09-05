@@ -109,7 +109,9 @@ The active `init/lmp_in.py` controls MD length, timestep, dump stride, pressure,
 - `--keep-out`: retain merged descriptor `.out` files.
 - `--force-recompute`: ignore cached descriptor pickle files.
 
-Outputs include `combined_pca_coverage_<elements>.jpg`, `coverage_summary.csv`, `coverage_remark.txt`, and `pca_txt/<loop>/<element>_pca_{A,B}.txt`.
+Standalone outputs include `combined_pca_coverage_<elements>.jpg`, `coverage_summary.csv`, `coverage_remark.txt`, and `pca_txt/<loop>/<element>_pca_{A,B}.txt`.
+
+When coverage runs inside `dcbf run` with summary collection enabled, the persistent export under `<summary>/analysis/coverage/` is intentionally smaller: final PCA figures, `coverage_summary.csv`, `coverage_remark.txt`, `query_manifest.json`, and compressed `query.xyz.gz`. After the summary manifest is published, rebuildable descriptor caches, split XYZ, PCA text, query run directories, and the uncompressed workspace `query.xyz` are removed. This cleanup does not change coverage values or standalone command behavior.
 
 ## Workflow JSON
 

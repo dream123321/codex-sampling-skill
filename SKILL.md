@@ -127,7 +127,7 @@ When the user selects `reduce`, ask which function is intended:
 - Repository: `https://github.com/dream123321/DCBF`.
 - Installation source: the latest GitHub one-button release unless the user names a specific package or existing deployment.
 - Active deployment: the validated path remembered for the current target.
-- Current source, CLI help, and example configs were cross-checked against a live one-button deployment on 2026-08-12.
+- Current source, CLI help, example configs, low-disk storage, and raw-DFT archive behavior were cross-checked against a live one-button deployment on 2026-09-05.
 - CLI: `dcbf`.
 - Verify current commands and saved defaults before editing a config:
 
@@ -138,6 +138,7 @@ dcbf -hh
 dcbf train -h
 dcbf coverage-pca -h
 dcbf reduce -h
+dcbf raw-dft -h
 ```
 
 CLI defaults for `train`, `relax`, `efs-distri`, `predict-xyz`, `plot-errors`, and `mp-search` may be overridden by `~/.dcbf/cli_defaults.json`. The `current:` values printed by `dcbf <command> -h` take precedence over reference prose.
@@ -154,6 +155,7 @@ Read [references/current-paths.md](references/current-paths.md) for verified pat
 - Candidate-only self-distillation and reference-guided reduce: [references/reduce.md](references/reduce.md).
 - Direct CLI commands and option meanings: [references/command-reference.md](references/command-reference.md).
 - Stable defaults, units, path precedence, and removed names: [references/defaults.md](references/defaults.md).
+- Low-disk training history, raw DFT archives, cleanup boundaries, and failure recovery: [references/storage-and-recovery.md](references/storage-and-recovery.md).
 - Questions to collect before preparing or submitting work: [references/parameter-intake.md](references/parameter-intake.md).
 - GitHub installation and remembered-path behavior: [references/installation.md](references/installation.md).
 - Selection acceleration and advanced validation: [references/selection-performance.md](references/selection-performance.md).
@@ -166,7 +168,8 @@ Read [references/current-paths.md](references/current-paths.md) for verified pat
 4. Explain parameter effects before changing expensive sampling, DFT, or training settings.
 5. Validate with `dcbf run CONFIG.json --prepare-only` before a new long run unless the user explicitly requests immediate submission.
 6. Inspect generated `dcbf.runtime.json`, `init/parameter.yaml`, scheduler scripts, and `lmp.in` files before submission.
-7. After source edits, synchronize the installed runtime only when required, then run `py_compile` and focused behavioral checks.
+7. Resolve `summary.output_dir` from the workspace parent, then verify that training-history and raw-DFT manifests remain available before cleaning or moving a workspace.
+8. After source edits, synchronize the installed runtime only when required, then run `py_compile` and focused behavioral checks.
 
 ## Public Configuration Rules
 
@@ -175,7 +178,7 @@ Read [references/current-paths.md](references/current-paths.md) for verified pat
 - Use current names only: `body_list`, `dq_width_method`, `dq_width`, `dq_width_factor`, `dynamic_dq_width`, `state_population`, `dimension_min_cover_workers`, `dft_clean_dcbf_environment`, and reduce `xyz_io_mode`.
 - Do not restore removed `iw_*`, `bw_*`, `coverage_count_threshold`, `coverage_label`, `data_modes`, `loops`, old reduce modes, or the rejected `clean_dft_environment` name.
 - Elements are normally inferred and sorted by atomic number. When a custom MTP contains a fixed species mapping, provide the complete element order and use `sort_ele=false` only when that mapping requires it.
-- Relative JSON paths resolve from the JSON directory unless a feature explicitly resolves output under `run_dir`.
+- Relative JSON paths normally resolve from the JSON directory. Relative `summary.output_dir` is a deliberate exception: it resolves from the parent of `run_dir`, outside the workspace.
 - Do not copy hard-coded paths from an example blindly. Point executables and environment setup to the active deployment runtime.
 
 ## Quick Playbooks
@@ -214,6 +217,14 @@ Reduce a dataset:
 
 ```bash
 dcbf reduce reduce.json
+```
+
+Verify or restore one archived DFT task:
+
+```bash
+dcbf raw-dft verify summary_bundle/raw_dft/vasp/main_0/gen_0/dir_1/task_1.tar.zst
+dcbf raw-dft extract summary_bundle/raw_dft/vasp/main_0/gen_0/dir_1/task_1.tar.zst \
+  --output-dir restored/task_1
 ```
 
 ## Submission And Safety

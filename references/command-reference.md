@@ -79,6 +79,9 @@ Uses the bundled `sus2_plot_errors_v3.py` comparator.
 - `dcbf reduce CONFIG.json`: run reduce; see `reduce.md`.
 - `dcbf coverage-pca ...`: run coverage analysis. Standalone use requires
   `--model`, `--elements`, and `--mtp-type`; see `coverage-pca.md`.
+- `dcbf raw-dft pack DIRECTORY [--output ARCHIVE]`: archive every regular file in one directory as `.tar.zst` with bundled zstd level 19 and one thread.
+- `dcbf raw-dft verify ARCHIVE`: verify compression, member-path safety, SHA-256, and manifest metadata for `.tar.zst` or legacy `.tar.gz` archives.
+- `dcbf raw-dft extract ARCHIVE [--output-dir DIR]`: verify first, then safely extract into a new directory. The destination must not already exist.
 - `dcbf kill [RUN_DIR_OR_CONFIG]`: terminate the managed run identified by `pid.txt`. Confirm user intent first.
 
 ## Materials Project

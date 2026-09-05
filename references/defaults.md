@@ -1,13 +1,13 @@
 # Defaults, Units, And Precedence
 
-These defaults were verified against the current source and examples on 2026-08-12. Example JSON files and `~/.dcbf/cli_defaults.json` may override them.
+These defaults were verified against the current source and examples on 2026-09-05. Example JSON files and `~/.dcbf/cli_defaults.json` may override them.
 
 ## Precedence
 
 - Direct CLI tools: explicit option > saved `~/.dcbf/cli_defaults.json` > built-in default.
 - Sampling JSON: explicit field > code default.
 - Coverage JSON: explicit `sampling.coverage_plot` field > coverage CLI default; scheduler executable/environment values are used when coverage-specific values are absent.
-- Relative config paths resolve from the JSON directory; many generated outputs resolve under `run_dir`.
+- Relative config paths normally resolve from the JSON directory. Relative `summary.output_dir` resolves from the parent of `run_dir`; generated workflow intermediates remain under `run_dir`.
 - Always inspect `dcbf <command> -h` for the live `current:` CLI values.
 
 ## Sampling Defaults
@@ -30,10 +30,10 @@ mlp_encode_model:
   dq_width = 0.01
   dq_width_factor = 1.0
   body_list = [two, three]
-  selection_budget_schedule = [20, 15, 10]
+  selection_budget_schedule = [12, 8, 5]
   coverage_threshold_schedule = [99.5, 99.9, 99.95]
   coverage_rate_method = mean
-  coverage_calculation_mode = per_configuration
+  selection_budget_scope = per_configuration
   candidate_trigger = 10
   state_population = 0
   mean_descriptor_enabled = false
@@ -57,6 +57,8 @@ Scheduler code defaults are queue `33`, cores `40`, and ptile `40` for training,
 
 `dimension_min_cover_workers=0` uses the original joint solver. `1`, positive `N`, and `-1` use serial per-dimension solving, at most `N` worker processes, and all scheduler-allocated or affinity-visible CPUs respectively. Sampling examples use `4`; every nonzero mode merges per-dimension results and applies deterministic global reverse pruning.
 
+Coverage is always calculated separately for every seed configuration. `selection_budget_scope=per_configuration` gives each seed its own strict staged budget. `all_configurations` keeps per-seed coverage but applies one shared round budget with the existing FWSS selection semantics. The removed `coverage_calculation_mode` field is ignored with a migration warning.
+
 ## Reduce Defaults
 
 ```text
@@ -65,7 +67,7 @@ encoding_cores = 5
 xyz_io_mode = fast_extxyz
 dimension_min_cover_workers = -1
 state_population = 0
-chunk_size = 100000
+chunk_size = 1000000
 append_current = true
 keep_intermediate = false
 output_xyz = dcbf_reduce_sample.xyz
@@ -144,6 +146,21 @@ builder MD:
   log_interval = 100
   traj_interval = 100
 ```
+
+## Summary And Low-Disk Storage Defaults
+
+```text
+summary.enabled = false in code; current workflow examples set true
+summary.output_dir = summary_bundle
+runtime training CFG = workspace/.dcbf_runtime/training/train.cfg
+training history = <summary>/datasets/training_history/xyz/
+raw DFT archives = <summary>/raw_dft/<engine>/...
+raw DFT compression = tar.zst, zstd level 19, one thread
+```
+
+Training-history shards and raw DFT archives use the resolved summary directory during the workflow. Do not treat `summary.enabled=false` as permission to delete that directory while a run is active. The runtime training CFG is retained after interruption and removed only after full workflow success.
+
+The bundled DFT templates request standard charge density by default: VASP `LCHARG=.TRUE.` with `LAECHG=.FALSE.`, ABACUS `out_chg 1`, QE `disk_io='nowf'`, and CP2K `E_DENSITY_CUBE`. These files increase archive size. Raw DFT manifests record whether charge output was requested and found.
 
 ## Units
 

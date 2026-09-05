@@ -20,8 +20,8 @@ Use this reference for `dcbf run CONFIG.json`. Public sampling configs use `init
 ```
 
 - `run_dir`: generated workspace, relative to the JSON directory unless absolute.
-- `summary.enabled`: collect the final summary bundle.
-- `summary.output_dir`: summary directory, default `summary_bundle`.
+- `summary.enabled`: collect the final reports, models, sources, and analysis bundle. Current examples set it to true.
+- `summary.output_dir`: persistent summary/history/archive directory, default `summary_bundle`. A relative value resolves from the parent of `run_dir`, so it is a sibling of the workspace.
 - `init_dataset`: existing dataset or initial-dataset builder settings; see [dataset-builder.md](dataset-builder.md).
 - `sampling.workflow`: main NPT/NVT schedule and loop control.
 - `sampling.scheduler`: training, LAMMPS, and DFT resources/commands.
@@ -141,7 +141,7 @@ Fields belong under `modes.mlp_encode_model`.
 | `selection_budget_schedule` | Maximum candidate budget associated with each coverage stage. |
 | `coverage_threshold_schedule` | Staged coverage percentages; scalar stages apply to all elements, nested stages may specify per-element thresholds. |
 | `coverage_rate_method` | `mean` averages descriptor-dimension coverages; `min` uses the worst dimension. |
-| `coverage_calculation_mode` | `per_configuration` evaluates each seed separately; `global` evaluates the combined MD pool. |
+| `selection_budget_scope` | Budget scope only. `per_configuration` (default) gives every seed a separate strict budget; `all_configurations` gives all seeds one shared round budget. Coverage is always evaluated separately for every seed. |
 | `candidate_trigger` | Minimum accumulated candidate-pool size before DFT and MLIP update. Below it, candidates remain pooled and the current model is reused. |
 | `state_population` | Database bins with frequency `<= value` are treated as insufficient/uncovered for two/three-body selection. |
 | `report_state_population_zero_baseline` | Also compute/log a diagnostic baseline with `state_population=0`; expensive and verbose, default false. |
@@ -163,18 +163,18 @@ For `dimension_min_cover_workers != 0`, DCBF solves descriptor dimensions indepe
 - `2`: bins containing at most two are uncovered.
 - `10`: bins containing at most ten are uncovered; this is much stricter and normally increases selection.
 
-For scalar schedules such as thresholds `[99.5, 99.9, 99.95]` and budgets `[20, 15, 10]`:
+For scalar schedules such as thresholds `[99.5, 99.9, 99.95]` and budgets `[12, 8, 5]`:
 
-- coverage below 99.5 uses budget 20
-- 99.5 to below 99.9 uses 15
-- 99.9 to below 99.95 uses 10
+- coverage below 99.5 uses budget 12
+- 99.5 to below 99.9 uses 8
+- 99.9 to below 99.95 uses 5
 - reaching the final threshold produces no budget from that metric
 
-The final total budget/union logic remains authoritative; changing staged budgets does not bypass later deduplication or candidate-pool handling.
+With `selection_budget_scope=per_configuration`, each seed independently looks up one of these budgets from its own worst enabled coverage metric, and its merged candidates are strictly capped at that number. With `all_configurations`, the worst per-seed coverage determines one shared budget and the existing FWSS approximate-count behavior is retained. Changing staged budgets does not bypass later deduplication or candidate-pool handling.
 
 ### Per-Configuration Continuation
 
-In `per_configuration` mode, the next `stru.pkl` contains only configurations that have not reached the final hard threshold for every enabled metric:
+The next `stru.pkl` always contains only configurations that have not reached the final hard threshold for every enabled metric:
 
 - mean descriptor, when enabled
 - each body in `body_list`
@@ -209,6 +209,10 @@ Do not mix DAS fields into the DCBF descriptor mode.
 | `force_threshold` | Maximum-force filter in eV/A used when collecting labeled structures. |
 | `pending_warning_hours` | Optional warning time for unstarted/uncompleted DFT tasks. `null` disables it. |
 
+Successful DFT tasks mapped to collected structures are archived per task under the resolved summary root before their large originals are cleaned. Completed tasks excluded from the collected dataset keep a smaller diagnostic archive under `raw_dft_excluded`. VASP, ABACUS, QE, and CP2K retain the structure and primary E/F/S output; requested charge-density files are included and their status is recorded in the raw-DFT manifest. Archive verification failure prevents source cleanup.
+
+The bundled example templates currently request standard charge density. This is useful for retaining restart/analysis data but increases disk consumption; inspect `INCAR`, `INPUT`, `qe.in`, or `cp2k.inp` before submission when disk use matters.
+
 ## Coverage Plot Block
 
 `sampling.coverage_plot.enabled=true` runs coverage analysis after sampling and before final training. Use [coverage-pca.md](coverage-pca.md) for every supported field. Coverage failures are logged as warnings so the workflow can continue to final training and bundling.
@@ -231,6 +235,8 @@ Do not mix DAS fields into the DCBF descriptor mode.
 | `max_iter` | Maximum training iterations, default 6000. |
 
 The standard command includes `--do-lin`.
+
+When `training.input_xyz` is null, final high-precision training reuses the shared `workspace/.dcbf_runtime/training/train.cfg`. An explicit alternative input keeps the normal XYZ-to-CFG conversion path. The shared CFG survives failures and interruptions and is deleted only after the complete workflow succeeds.
 
 ### `training.predict`
 

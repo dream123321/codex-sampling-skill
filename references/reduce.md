@@ -71,7 +71,7 @@ Uses `reduce.current_xyz` as the existing database and selects structures from `
 | `input_xyz` | Candidate structures. Required in both modes. |
 | `current_xyz` | Existing dataset. Required in `reference_guided`. |
 | `interval_ref_xyz` | Grid/reference source; defaults to `current_xyz` in `reference_guided`. |
-| `chunk_size` | Candidate frames per reference-guided chunk, default 100,000. |
+| `chunk_size` | Candidate frames per reference-guided chunk, default 1,000,000. |
 | `encoding_cores` | Descriptor process count, default 5. |
 | `xyz_io_mode` | Structure I/O backend: `fast_extxyz`, `auto`, or `ase`; default `fast_extxyz`. |
 | `dimension_min_cover_workers` | Minimum-cover strategy, default `-1`: 0 joint, 1 serial per-dimension, positive N limited parallelism, or -1 allocated/visible CPUs. |

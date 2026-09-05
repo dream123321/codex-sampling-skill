@@ -60,7 +60,7 @@ Active sampling always uses SUS2/LAMMPS. Use the standard `init/lmp_in.py` for o
 
 ### Response Branches
 
-- **Default**: retain the active example's MD duration, timestep, dump interval, selection mode, thresholds, budgets, `state_population`, `candidate_trigger`, `max_gen`, final training, and output settings. Do not ask about them again.
+- **Default**: retain the active example's MD duration, timestep, dump interval, selection mode, thresholds, budgets, `state_population`, `candidate_trigger`, `max_gen`, final training, and output settings. Report the resolved external summary directory and whether the active DFT template requests charge density, but do not ask about them again unless the user wants a change.
 - **Custom**: expand only the MD or selection fields named by the user.
 - **View parameters**: read the active JSON and `init/lmp_in.py`, then show MD, selection, minimum-cover worker, and DFT-environment-cleanup values. Do not paste the complete JSON.
 - **Default and submit**: populate required paths/resources, run `dcbf run CONFIG.json --prepare-only`, and submit and monitor after validation succeeds.
@@ -89,7 +89,7 @@ This produces `main_0=NPT 200 K`, `main_1=NVT 300 K`, and `main_2=NPT+NVT 600 K`
 
 Use this section only for custom selection settings or a request to view parameters:
 
-- `coverage_calculation_mode`: per configuration or global?
+- Should `selection_budget_scope` be the default strict budget per seed (`per_configuration`) or one shared round budget (`all_configurations`)? Coverage itself is always calculated per seed.
 - Enable mean descriptor coverage?
 - Use two-body, three-body, or both?
 - What does `state_population` need to represent scientifically: any occupied state (`0`) or a minimum database population (`1`, `2`, ...)?
@@ -107,6 +107,7 @@ Use this section only for custom selection settings or a request to view paramet
 - Supercell, strain list, displacement counts, displacement magnitude, and random seed.
 - Builder MD calculator/model, element mapping, temperature, pressure, timestep, NPT/NVT steps, intervals, and worker count.
 - DFT task count and force threshold for newly generated candidates.
+- Summary output root, raw-DFT retention, and charge-density output only when the user requests storage customization. Relative `summary.output_dir` is resolved from the workspace parent.
 
 Keep values from the active example when the user chooses defaults. Ask for builder details only when the user requests customization or when an enabled method is missing a required model/input.
 
