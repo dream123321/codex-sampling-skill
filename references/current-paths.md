@@ -76,9 +76,9 @@ Use `dcbf -hh` only when internal advanced commands are required.
 
 Relative `summary.output_dir` is resolved from the workspace parent, not from the workspace or JSON directory. For `run_dir=./workspace` and `output_dir=summary_bundle`, the two directories are siblings.
 
-The summary bundle normally contains `datasets/`, `models/`, `reports/`, `logs/`, `sources/`, `analysis/`, and raw DFT archives. `datasets/all.xyz` is assembled deterministically from the initial and per-generation history shards. During a run, the shared `train.cfg` is retained after failure or interruption and can be rebuilt from those shards; it is removed only after the complete workflow and final bundle collection succeed.
+The summary bundle normally contains `datasets/`, `models/`, `reports/`, `logs/`, `sources/`, `analysis/`, and raw DFT archives. `datasets/all.xyz` is assembled deterministically from the initial and per-generation history shards. The shared `train.cfg` normally survives interruption and can be rebuilt from shards; it is removed at the end of the top-level finalization path. Optional coverage warnings do not necessarily prevent cleanup; see [storage-and-recovery.md](storage-and-recovery.md).
 
-Workflow coverage export under `<summary>/analysis/coverage/` contains final PCA figures, `coverage_summary.csv`, `coverage_remark.txt`, `query_manifest.json`, and `query.xyz.gz`. Rebuildable descriptor caches, split XYZ, PCA text, query run directories, and the uncompressed workspace query are cleaned only after the summary manifest is published. Standalone `dcbf coverage-pca` output is not subject to this workflow bundling cleanup.
+Workflow coverage export under `<summary>/analysis/coverage/` keeps available final PCA figures, `coverage_summary.csv`, and `coverage_remark.txt`, plus `query_manifest.json` and `query.xyz.gz` when the generated-query sources exist. Missing sources are recorded in the summary manifest. Rebuildable intermediates are cleaned after that manifest is published, not after proving every optional artifact succeeded. Standalone `dcbf coverage-pca` output is not subject to this workflow bundling cleanup.
 
 ## Source And Runtime Edits
 

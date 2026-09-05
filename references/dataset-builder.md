@@ -62,8 +62,8 @@ When the user chooses defaults, copy the active deployment's `source/DCBF/exampl
 | `enabled` | Enable random strain/rattle generation. |
 | `supercell` | Three repetition integers or a 3x3 transformation matrix. |
 | `strain` | Isotropic scale factors applied to every source structure. |
-| `rattle_count` | Number of randomly displaced structures per source. |
-| `rattle_step` | Gaussian displacement scale in angstrom. |
+| `rattle_count` | Number of rattled variants per source AND strain factor; each factor also emits one un-rattled strained structure before deduplication. |
+| `rattle_step` | Angstrom scale increment: rattle variant i uses `(i+1) * rattle_step`. |
 | `seed` | Reproducible random seed. |
 
 ## Phonon Displacement
@@ -101,14 +101,18 @@ Builder MD is a short initial-dataset construction path and is distinct from sam
 ## DFT And Outputs
 
 - `dft.calc_dir_num` controls the number of DFT task groups.
-- `dft.force_threshold` filters collected structures by maximum force in eV/A.
+- `dft.force_threshold` uses strict maximum atomic-force norm in eV/A; if parsed structures exist but none pass, the shared collector retains the minimum-maximum-force fallback.
 - Only newly generated structures are sent to DFT in `augment_existing` mode.
 - The report records source, generated, DFT-success, deduplicated, and final counts.
 - Builder work is under `run_dir/init_dataset_build`; the final dataset and report use the configured output paths.
 - Element validation runs after building: every element in sampling seeds must exist in the final initial dataset.
 
-Validate without starting a full sampling run:
+The public normalizer forces `include_source_structures=false` and `post_build_action=continue`; these are not effective user switches in this version.
+
+Stop before active sampling (NOT necessarily before builder computation):
 
 ```bash
 dcbf run CONFIG.json --prepare-only
 ```
+
+The CLI checks this flag only after `ensure_dataset()`. An enabled builder may run ASE MD and submit DFT during this command. For no-computation requests, inspect JSON/inputs statically and do not invoke it under the assumption of a pure dry run. See [sampling-workflow.md](sampling-workflow.md).

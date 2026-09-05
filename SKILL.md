@@ -37,7 +37,7 @@ python scripts/dcbf_installation_state.py remember \
 ```
 
 7. For a new installation, obtain explicit permission for the download and target directory, follow [references/installation.md](references/installation.md), run `verify.sh`, and remember the verified root with `--source github-release`.
-8. A path explicitly supplied in the current request overrides a remembered path. Validate it and update that target's entry.
+8. An explicit deployment path overrides the remembered root for the current task. Update installation state only when the user identifies it as the installation to use; a temporary source-audit path must not replace the remembered installation.
 
 The state file stores only target identifiers, deployment roots, source labels, versions, and timestamps. Never store passwords, SSH keys, GitHub tokens, scheduler credentials, or Materials Project API keys.
 
@@ -109,7 +109,7 @@ When the user selects dataset construction, collect the required decisions once 
 
 Inspect existing files first and omit anything already known. If the user chooses defaults, do not ask again about MD duration, timestep, dump interval, selection mode, thresholds, budgets, `state_population`, `candidate_trigger`, or `max_gen`. If the user chooses custom settings, expand only the named MD or selection fields. If the user asks to view parameters, show those two groups with values read from the active template.
 
-Treat “default and submit” as explicit submission intent: fill the required paths/resources, run `--prepare-only`, and submit and monitor only after that validation succeeds. A `prepare-only` choice stops after validation.
+Treat “default and submit” as explicit submission intent: inspect paths/resources and inputs first, then prepare, submit, and monitor. In the audited code, `--prepare-only` stops before active sampling, but only AFTER the initial-dataset builder; an enabled builder can run MD and submit DFT. For inspection-only or no-computation requests, use static checks instead. Clarify this side effect before invoking that flag when builder computation has not been authorized. See [references/sampling-workflow.md](references/sampling-workflow.md).
 
 When the user selects `reduce`, ask which function is intended:
 
@@ -128,6 +128,7 @@ When the user selects `reduce`, ask which function is intended:
 - Installation source: the latest GitHub one-button release unless the user names a specific package or existing deployment.
 - Active deployment: the validated path remembered for the current target.
 - Current source, CLI help, example configs, low-disk storage, and raw-DFT archive behavior were cross-checked against a live one-button deployment on 2026-09-05.
+- Sampling call paths, model baselines, budgets, continuation, and failure handling were additionally audited on 2026-09-05; see [references/source-audit.md](references/source-audit.md) for evidence boundaries and a repeatable read-only check.
 - CLI: `dcbf`.
 - Verify current commands and saved defaults before editing a config:
 
@@ -148,6 +149,8 @@ Read [references/current-paths.md](references/current-paths.md) for verified pat
 ## Load The Relevant Reference
 
 - Building or expanding a training dataset:
+  - End-to-end stages, candidate pool, model reuse, stopping, and resume: [references/sampling-workflow.md](references/sampling-workflow.md).
+  - Histogram coverage, mean/AEE selection, budgets, and `stru.pkl`: [references/selection-logic.md](references/selection-logic.md).
   - Sampling JSON, scheduler, selection modes, thresholds, and training block: [references/sampling-config.md](references/sampling-config.md).
   - Initial dataset construction and `augment_existing`: [references/dataset-builder.md](references/dataset-builder.md).
   - Standard SUS2MD, PLUMED, and MCMD sampling templates: [references/enhanced-sampling.md](references/enhanced-sampling.md).
@@ -159,6 +162,7 @@ Read [references/current-paths.md](references/current-paths.md) for verified pat
 - Questions to collect before preparing or submitting work: [references/parameter-intake.md](references/parameter-intake.md).
 - GitHub installation and remembered-path behavior: [references/installation.md](references/installation.md).
 - Selection acceleration and advanced validation: [references/selection-performance.md](references/selection-performance.md).
+- Source-to-behavior index, active versus legacy branches, and audit limits: [references/source-audit.md](references/source-audit.md).
 
 ## Operating Procedure
 
@@ -166,7 +170,7 @@ Read [references/current-paths.md](references/current-paths.md) for verified pat
 2. Inspect the live command help, the requested JSON, and `source/DCBF/example/` before changing parameters.
 3. Infer cheap facts from files: elements, scheduler backend, existing model paths, available seed structures, and previous run state.
 4. Explain parameter effects before changing expensive sampling, DFT, or training settings.
-5. Validate with `dcbf run CONFIG.json --prepare-only` before a new long run unless the user explicitly requests immediate submission.
+5. Inspect builder settings before preparation. `--prepare-only` is not a computation-free dry run when the builder is enabled; do static checks first and run it only within the user's authorized computation scope.
 6. Inspect generated `dcbf.runtime.json`, `init/parameter.yaml`, scheduler scripts, and `lmp.in` files before submission.
 7. Resolve `summary.output_dir` from the workspace parent, then verify that training-history and raw-DFT manifests remain available before cleaning or moving a workspace.
 8. After source edits, synchronize the installed runtime only when required, then run `py_compile` and focused behavioral checks.
@@ -177,7 +181,7 @@ Read [references/current-paths.md](references/current-paths.md) for verified pat
 - Enable exactly one selection mode: `mlp_encode_model`, `das_adaptive`, or `das_fixed`. Invalid mode counts warn and fall back to `mlp_encode_model`.
 - Use current names only: `body_list`, `dq_width_method`, `dq_width`, `dq_width_factor`, `dynamic_dq_width`, `state_population`, `dimension_min_cover_workers`, `dft_clean_dcbf_environment`, and reduce `xyz_io_mode`.
 - Do not restore removed `iw_*`, `bw_*`, `coverage_count_threshold`, `coverage_label`, `data_modes`, `loops`, old reduce modes, or the rejected `clean_dft_environment` name.
-- Elements are normally inferred and sorted by atomic number. When a custom MTP contains a fixed species mapping, provide the complete element order and use `sort_ele=false` only when that mapping requires it.
+- Sampling infers elements from the initial dataset and forces `sort_ele=true`; do not promise that a sampling JSON can disable this. Reduce and direct training have their own element-order controls; follow their references for custom potentials.
 - Relative JSON paths normally resolve from the JSON directory. Relative `summary.output_dir` is a deliberate exception: it resolves from the parent of `run_dir`, outside the workspace.
 - Do not copy hard-coded paths from an example blindly. Point executables and environment setup to the active deployment runtime.
 
@@ -195,6 +199,7 @@ dcbf create-init
 Build or expand a training dataset:
 
 ```bash
+# With builder enabled, even --prepare-only can execute builder MD/DFT.
 dcbf run dcbf.init_dataset.vasp.test.json --prepare-only
 dcbf run dcbf.init_dataset.vasp.test.json
 dcbf run dcbf.init_dataset.vasp.test.json --foreground

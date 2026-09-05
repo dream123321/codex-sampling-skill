@@ -27,7 +27,9 @@ the case directory contains sibling `workspace/` and `summary_bundle/` directori
 
 The manifest records the initial data and each successful main/generation shard with frame count and SHA-256. DCBF appends the corresponding CFG data to one shared runtime `train.cfg`; sampling training, candidate-trigger counting, and default final high-precision training use that same file.
 
-After failure or interruption, the runtime CFG is retained. Normal resume validates it and can rebuild it from complete history shards when needed. After the whole workflow, summary collection, and final outputs succeed, DCBF marks the history complete and removes the shared CFG. Do not edit the manifest or shards by hand during a live run.
+After failure or interruption, the runtime CFG is normally retained and can be rebuilt from history shards. The ordinary resume size/manifest checks are not a full content-hash validation of the shared CFG; final history export checks shard integrity separately. Do not present every resume/rebuild path as complete checksum verification.
+
+The top-level caller marks history complete and removes the shared CFG after its finalization path returns. Coverage and some plot exceptions are caught as warnings, and bundling can be disabled, so this is not proof that every optional artifact succeeded. `training.wait=false` also is not a supported assumption of safely detached finalization. Do not edit manifests/shards or clean CFG links during a live run.
 
 ## Raw DFT Archives
 
@@ -55,4 +57,4 @@ dcbf raw-dft extract summary_bundle/raw_dft/vasp/main_0/gen_0/dir_1/task_1.tar.z
 
 ## Coverage Cleanup
 
-Workflow summary export keeps final figures, `coverage_summary.csv`, `coverage_remark.txt`, `query_manifest.json`, and `query.xyz.gz`. Only after the summary manifest is published does DCBF remove rebuildable workspace descriptor caches, split XYZ, PCA text, query run directories, and the uncompressed query trajectory. Standalone `dcbf coverage-pca` keeps its normal full output.
+Workflow summary export copies available final figures, `coverage_summary.csv`, and `coverage_remark.txt`; it also copies `query_manifest.json` and compresses `query.xyz` from the generated-query directory when present. Missing sources are recorded in the manifest, so these outputs are not guaranteed for an external query or failed optional analysis. After publishing the summary manifest, DCBF removes rebuildable workspace descriptor caches, split XYZ, PCA text, query run directories, and the uncompressed generated query. Manifest publication does not mean every optional file existed. Standalone `dcbf coverage-pca` keeps its normal full output.

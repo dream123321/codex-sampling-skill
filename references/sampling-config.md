@@ -2,6 +2,8 @@
 
 Use this reference for `dcbf run CONFIG.json`. Public sampling configs use `init_dataset`, `sampling`, and `training`; the bootstrapper converts them to the internal runtime layout.
 
+For execution and stop/resume decisions, read [sampling-workflow.md](sampling-workflow.md). For the exact math, model baselines, and budget ordering, read [selection-logic.md](selection-logic.md). The [parameter matrix](defaults.md) separates omitted-field defaults from the shipped sample values.
+
 ## Top-Level Layout
 
 ```json
@@ -142,19 +144,19 @@ Fields belong under `modes.mlp_encode_model`.
 | `coverage_threshold_schedule` | Staged coverage percentages; scalar stages apply to all elements, nested stages may specify per-element thresholds. |
 | `coverage_rate_method` | `mean` averages descriptor-dimension coverages; `min` uses the worst dimension. |
 | `selection_budget_scope` | Budget scope only. `per_configuration` (default) gives every seed a separate strict budget; `all_configurations` gives all seeds one shared round budget. Coverage is always evaluated separately for every seed. |
-| `candidate_trigger` | Minimum accumulated candidate-pool size before DFT and MLIP update. Below it, candidates remain pooled and the current model is reused. |
+| `candidate_trigger` | Minimum accumulated candidate count, or percentage string such as `"1%"` of current training CFG frames (rounded up). Not a DFT budget; see workflow for zero-selection and final leftover handling. |
 | `state_population` | Database bins with frequency `<= value` are treated as insufficient/uncovered for two/three-body selection. |
 | `report_state_population_zero_baseline` | Also compute/log a diagnostic baseline with `state_population=0`; expensive and verbose, default false. |
 | `mean_descriptor_enabled` | Enable mean-descriptor coverage and candidate selection. |
 | `mean_descriptor_state_population` | Independent low-population threshold for the mean descriptor. |
-| `mean_descriptor_low_coverage_threshold` | In per-configuration mode, below this percentage the mean-descriptor branch keeps the last 20 percent of its ranked budget; default 90. |
+| `mean_descriptor_low_coverage_threshold` | Below this percentage, each seed's mean branch keeps the tail 20% of its ranked minimum-cover list, capped by its mean budget; default 90. Not a chronological MD tail. |
 | `plateau_generations` | Number of recent generations used for optional plateau convergence; disabled when null. |
 | `min_coverage_delta` | Each recent coverage improvement below this value counts toward plateau convergence; disabled when null. |
 | `report_per_configuration_details` | Print per-seed coverage and selected counts. |
 
 FD width is `2 * IQR * n^(-1/3) * dq_width_factor`; when IQR is zero, the implementation falls back to a Scott-style standard-deviation width.
 
-For `dimension_min_cover_workers != 0`, DCBF solves descriptor dimensions independently, unions their selected structures, and applies deterministic global reverse pruning. It preserves the required coverage and `state_population` targets, but selected structure identities and counts can differ from the original joint solver.
+For `dimension_min_cover_workers != 0`, DCBF solves descriptor dimensions independently, unions their selected structures, and applies deterministic global reverse pruning. This preserves the solver's task requirements, not a promise that the later budget-truncated candidates meet every population target. Sampling identifies insufficient states using `state_population`; candidate-only reduce has a separate multicover target. Structure identities/counts can differ from the joint solver.
 
 `state_population` examples:
 
@@ -179,7 +181,7 @@ The next `stru.pkl` always contains only configurations that have not reached th
 - mean descriptor, when enabled
 - each body in `body_list`
 
-Equal to the threshold counts as reached. A configuration can continue MD even if its current generation contributes no DFT candidate. Conversely, a configuration that produced a candidate can stop MD once all enabled hard thresholds are reached. Plateau convergence remains the existing whole-loop termination mechanism and does not replace this hard per-seed test.
+Equal to the threshold counts as reached. A configuration can remain in `stru.pkl` even if it contributes no DFT candidate, but a generation with zero total candidates can still end the main loop. This DCBF seed rule applies under both budget scopes. New mains start again with the original seeds. Plateau remains the whole-loop mechanism; signed coverage decreases can satisfy it. See the workflow for the exact ordering.
 
 ## DAS Modes
 
@@ -196,7 +198,7 @@ Equal to the threshold counts as reached. A configuration can continue MD even i
 
 - `mlp_nums`: ensemble model count.
 - `threshold_low`, `threshold_high`: fixed ambiguity acceptance range.
-- `select_stru_num`: optional fixed selected count.
+- `select_stru_num`: workflow selection-count record, not an enforced user count cap.
 - Histogram and `sample` fields have the same role as adaptive DAS.
 
 Do not mix DAS fields into the DCBF descriptor mode.
@@ -206,8 +208,8 @@ Do not mix DAS fields into the DCBF descriptor mode.
 | Field | Meaning |
 |---|---|
 | `calc_dir_num` | Number of DFT task directories/batches. |
-| `force_threshold` | Maximum-force filter in eV/A used when collecting labeled structures. |
-| `pending_warning_hours` | Optional warning time for unstarted/uncompleted DFT tasks. `null` disables it. |
+| `force_threshold` | Strict maximum atomic-force norm filter in eV/A. If parsed labels exist but none pass, the smallest-maximum-force structure is retained as fallback. |
+| `pending_warning_hours` | Warning hours for tasks with `__start__` but without `__ok__`; does not time out or resubmit jobs. `null` disables it. |
 
 Successful DFT tasks mapped to collected structures are archived per task under the resolved summary root before their large originals are cleaned. Completed tasks excluded from the collected dataset keep a smaller diagnostic archive under `raw_dft_excluded`. VASP, ABACUS, QE, and CP2K retain the structure and primary E/F/S output; requested charge-density files are included and their status is recorded in the raw-DFT manifest. Archive verification failure prevents source cleanup.
 
@@ -229,14 +231,14 @@ The bundled example templates currently request standard charge density. This is
 | `model_name` | Final potential name, default `trained.mtp`. |
 | `elements` | Optional explicit element mapping; otherwise infer from input. |
 | `sort_ele` | Sort inferred/provided elements by atomic number. |
-| `submit` | Submit through the configured scheduler. |
-| `wait` | Wait for completion before prediction/plotting/bundling. |
+| `submit` | true submits through scheduler; false executes training locally, not a dry run. |
+| `wait` | Wait for scheduler training when true; false still reaches immediate model-existence checking and is not detached finalization. |
 | `command_prefix` | Complete custom training command prefix; null builds the standard SUS2 command. |
 | `max_iter` | Maximum training iterations, default 6000. |
 
 The standard command includes `--do-lin`.
 
-When `training.input_xyz` is null, final high-precision training reuses the shared `workspace/.dcbf_runtime/training/train.cfg`. An explicit alternative input keeps the normal XYZ-to-CFG conversion path. The shared CFG survives failures and interruptions and is deleted only after the complete workflow succeeds.
+When `training.input_xyz` is null, final high-precision training reuses the shared `workspace/.dcbf_runtime/training/train.cfg`. An explicit alternative input keeps the normal XYZ-to-CFG conversion path. The CFG normally survives interruption and is removed at the end of the top-level finalization path; optional coverage/plot warnings do not necessarily prevent cleanup.
 
 ### `training.predict`
 

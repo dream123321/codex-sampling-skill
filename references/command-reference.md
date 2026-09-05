@@ -74,7 +74,7 @@ Uses the bundled `sus2_plot_errors_v3.py` comparator.
 
 - `dcbf create-init`: copy bundled `example/sample` into the current directory. It refuses to overwrite existing target files.
 - `dcbf run CONFIG.json`: prepare and launch one workflow.
-- `dcbf run CONFIG.json --prepare-only`: materialize/validate without starting the sampling loop.
+- `dcbf run CONFIG.json --prepare-only`: stop before the active sampling loop, but after the initial builder. An enabled builder can execute MD/DFT; this is not a pure dry run.
 - `dcbf run CONFIG.json --foreground`: run orchestration in the current process instead of managed background mode.
 - `dcbf reduce CONFIG.json`: run reduce; see `reduce.md`.
 - `dcbf coverage-pca ...`: run coverage analysis. Standalone use requires

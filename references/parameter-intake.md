@@ -62,9 +62,9 @@ Active sampling always uses SUS2/LAMMPS. Use the standard `init/lmp_in.py` for o
 
 - **Default**: retain the active example's MD duration, timestep, dump interval, selection mode, thresholds, budgets, `state_population`, `candidate_trigger`, `max_gen`, final training, and output settings. Report the resolved external summary directory and whether the active DFT template requests charge density, but do not ask about them again unless the user wants a change.
 - **Custom**: expand only the MD or selection fields named by the user.
-- **View parameters**: read the active JSON and `init/lmp_in.py`, then show MD, selection, minimum-cover worker, and DFT-environment-cleanup values. Do not paste the complete JSON.
-- **Default and submit**: populate required paths/resources, run `dcbf run CONFIG.json --prepare-only`, and submit and monitor after validation succeeds.
-- **Prepare only**: stop after validation and report the generated paths and checks.
+- **View parameters**: read the active JSON and `init/lmp_in.py`, then show relevant MD, selection, minimum-cover worker, and DFT-environment-cleanup values. Distinguish code fallback, sample value and current effective value using [defaults.md](defaults.md). Do not paste the complete JSON.
+- **Default and submit**: populate required paths/resources and statically inspect first, then prepare and submit within the already authorized scope. The current `--prepare-only` flag can run the initial builder's MD/DFT before returning; it is not a computation-free validation step.
+- **Prepare only**: when no computation was authorized, do static validation first. With builder enabled, explain that the flag can run builder MD/DFT and resolve that scope before invoking it. Do not silently disable the builder. With builder disabled, the flag materializes/validates files before stopping short of active sampling.
 
 ## NPT/NVT Schedule Questions
 

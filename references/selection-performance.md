@@ -23,7 +23,17 @@ Sampling and reduce expose `dimension_min_cover_workers`:
 - Positive `N`: per-dimension solving with at most `N` worker processes.
 - `-1`: scheduler-allocated CPUs when detectable, otherwise affinity-visible CPUs.
 
-Sampling examples use `4`; reduce defaults to `-1`. Every nonzero mode unions the per-dimension solutions and applies deterministic global reverse pruning. A structure is removed only while all original coverage and state-population targets remain satisfied. The result may still contain different structure identities or a different count than the joint solver.
+Sampling examples use `4`; reduce defaults to `-1`. Every nonzero mode unions the per-dimension solutions and applies deterministic global reverse pruning. A structure is removed only while the solver's task requirements remain satisfied. The result may contain different structure identities/counts than the joint solver. Sampling then applies budgets: the final candidate subset need not retain all solver coverage requirements. Sampling's low-population-state detection and candidate-only reduce's multicover targets are distinct.
+
+## Memory-Aware Execution
+
+The current descriptor path builds compact numeric stores and uses memory-mapped data when it does not fit the store's RAM allowance. It can read selected columns/frames without decoding every legacy Python-list pickle; the optional mean representation still uses its dedicated compressed data. Descriptor execution, numeric-store preparation and minimum-cover are separate stages, so an external-encoding completion log does not mean selection is finished.
+
+`dimension_min_cover_workers` is a requested limit. Actual workers are capped by task count, visible/allocated CPUs, and, when the descriptor guard is active, the estimated per-task memory budget. A configured 4 or -1 does not guarantee that many simultaneous workers.
+
+The guard uses process-tree memory and available/cgroup/scheduler information, with an internal 80% available-memory allowance. It publishes `.descriptor_stage.json` and records exceptions in `memory_failure.json` and `__error__`. Generation supervision polls the child, limits in-flight work, and can terminate its owned process group on failure. Do not invent JSON memory settings for these internal controls, and do not identify every -9 exit or failure record as confirmed OOM.
+
+Read the error's stage, input, processed count, requested/effective workers and memory information. Preserve those reports while investigating. This audit did not deliberately exhaust server memory or test every scheduler/cgroup variant.
 
 ## Advanced Commands
 
